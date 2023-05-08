@@ -25,10 +25,10 @@ pub struct Styling<'p> {
     z_index: u8,
     grow: Option<u8>,
     shrink: Option<u8>,
-    border: Option<Border>,
-    border_radius: Option<usize>,
-    padding: Option<Ltrb>,
-    margin: Option<Ltrb>,
+    border: Border,
+    border_radius: BorderRadius,
+    padding: Padding,
+    margin: Margin,
     rotate: u16,
     scale: Option<Coordinates>,
     animation: (),
@@ -74,7 +74,17 @@ impl<'p> Styling<'p> {
         self
     }
 
-    //pub fn max_width_to_css(&self) -> Cow<str> {}
+    pub fn max_width_to_css(&self) -> Cow<str> {
+        let max_width = Cow::Owned(self.max_width.to_string());
+
+        if self.max_width == 0 {
+            Cow::Borrowed("max-width: 100%;")
+        } else if self.width_as_pixels {
+            Cow::Borrowed("min-width: ") + max_width + "px;"
+        } else {
+            Cow::Borrowed("max-width: ") + max_width + "%;"
+        }
+    }
 
     pub fn is_max_height(&self) -> bool {
         self.fill_max_height
@@ -90,6 +100,18 @@ impl<'p> Styling<'p> {
         self.min_height
     }
 
+    pub fn min_height_to_css(&self) -> Cow<str> {
+        let min_height = Cow::Owned(self.min_height.to_string());
+
+        if self.min_height == 0 {
+            Cow::Borrowed("min-height: none;")
+        } else if self.height_as_pixels {
+            Cow::Borrowed("min-height: ") + min_height + "px;"
+        } else {
+            Cow::Borrowed("min-height: ") + min_height + "%;"
+        }
+    }
+
     pub fn set_min_width(&mut self, value: usize) -> &mut Self {
         self.min_width = value;
 
@@ -98,6 +120,18 @@ impl<'p> Styling<'p> {
 
     pub fn min_width(&self) -> usize {
         self.min_width
+    }
+
+    pub fn min_width_to_css(&self) -> Cow<str> {
+        let min_width = Cow::Owned(self.min_width.to_string());
+
+        if self.min_width == 0 {
+            Cow::Borrowed("min-width: none;")
+        } else if self.height_as_pixels {
+            Cow::Borrowed("min-width: ") + min_width + "px;"
+        } else {
+            Cow::Borrowed("min-width: ") + min_width + "%;"
+        }
     }
 
     pub fn set_max_width(&mut self, value: usize) -> &mut Self {
@@ -120,6 +154,18 @@ impl<'p> Styling<'p> {
         self.max_height
     }
 
+    pub fn max_height_to_css(&self) -> Cow<str> {
+        let max_height = Cow::Owned(self.max_height.to_string());
+
+        if self.max_height == 0 {
+            Cow::Borrowed("max-height: none;")
+        } else if self.height_as_pixels {
+            Cow::Borrowed("max-height: ") + max_height + "px;"
+        } else {
+            Cow::Borrowed("max-height: ") + max_height + "%;"
+        }
+    }
+
     pub fn set_width(&mut self, value: usize) -> &mut Self {
         self.width = value;
 
@@ -128,6 +174,18 @@ impl<'p> Styling<'p> {
 
     pub fn width(&self) -> usize {
         self.width
+    }
+
+    pub fn width_to_css(&self) -> Cow<str> {
+        let width = Cow::Owned(self.width.to_string());
+
+        if self.width == 0 {
+            Cow::Borrowed("width: auto;")
+        } else if self.width_as_pixels {
+            Cow::Borrowed("width: ") + width + "px;"
+        } else {
+            Cow::Borrowed("width: ") + width + "%;"
+        }
     }
 
     pub fn set_height(&mut self, value: usize) -> &mut Self {
@@ -140,14 +198,26 @@ impl<'p> Styling<'p> {
         self.height
     }
 
+    pub fn height_to_css(&self) -> Cow<str> {
+        let height = Cow::Owned(self.height.to_string());
+
+        if self.height == 0 {
+            Cow::Borrowed("height: auto;")
+        } else if self.height_as_pixels {
+            Cow::Borrowed("height: ") + height + "px;"
+        } else {
+            Cow::Borrowed("height: ") + height + "%;"
+        }
+    }
+
     pub fn set_width_as_pixels(&mut self) -> &mut Self {
-        self.width_as_pixels = false;
+        self.width_as_pixels = true;
 
         self
     }
 
     pub fn set_width_as_percentage(&mut self) -> &mut Self {
-        self.width_as_pixels = true;
+        self.width_as_pixels = false;
 
         self
     }
@@ -157,13 +227,13 @@ impl<'p> Styling<'p> {
     }
 
     pub fn set_height_as_pixels(&mut self) -> &mut Self {
-        self.height_as_pixels = false;
+        self.height_as_pixels = true;
 
         self
     }
 
     pub fn set_height_as_percentage(&mut self) -> &mut Self {
-        self.height_as_pixels = true;
+        self.height_as_pixels = false;
 
         self
     }
@@ -218,6 +288,10 @@ impl<'p> Styling<'p> {
         self
     }
 
+    pub fn z_index_to_css(&self) -> Cow<str> {
+        Cow::Borrowed("z-index: ") + Cow::Owned(self.z_index.to_string()) + ";"
+    }
+
     pub fn z_index(&self) -> u8 {
         self.z_index
     }
@@ -236,6 +310,14 @@ impl<'p> Styling<'p> {
         self.grow
     }
 
+    pub fn grow_to_css(&self) -> Cow<str> {
+        if let Some(grow) = self.grow {
+            Cow::Borrowed("flex-grow: ") + Cow::Owned(grow.to_string()) + ";"
+        } else {
+            Cow::Borrowed("flex-grow: 1;")
+        }
+    }
+
     pub fn set_shrink(&mut self, value: u8) -> &mut Self {
         if value == 0 {
             self.shrink = None;
@@ -250,47 +332,51 @@ impl<'p> Styling<'p> {
         self.shrink
     }
 
+    pub fn shrink_to_css(&self) -> Cow<str> {
+        if let Some(shrink) = self.shrink {
+            Cow::Borrowed("flex-shrink: ") + Cow::Owned(shrink.to_string()) + ";"
+        } else {
+            Cow::Borrowed("flex-shrink: 1;")
+        }
+    }
+
     pub fn set_border(&mut self, value: Border) -> &mut Self {
-        self.border = Some(value);
+        self.border = value;
 
         self
     }
 
-    pub fn border(&self) -> Option<Border> {
+    pub fn border(&self) -> Border {
         self.border
     }
 
-    pub fn set_border_radius(&mut self, value: usize) -> &mut Self {
-        if value == 0 {
-            self.border_radius = None;
-        } else {
-            self.border_radius = Some(value);
-        }
+    pub fn set_border_radius(&mut self, value: BorderRadius) -> &mut Self {
+        self.border_radius = value;
 
         self
     }
 
-    pub fn border_radius(&self) -> Option<usize> {
+    pub fn border_radius(&self) -> BorderRadius {
         self.border_radius
     }
 
-    pub fn set_padding(&mut self, value: Option<Ltrb>) -> &mut Self {
+    pub fn set_padding(&mut self, value: Padding) -> &mut Self {
         self.padding = value;
 
         self
     }
 
-    pub fn padding(&self) -> Option<Ltrb> {
+    pub fn padding(&self) -> Padding {
         self.padding
     }
 
-    pub fn set_margin(&mut self, value: Option<Ltrb>) -> &mut Self {
+    pub fn set_margin(&mut self, value: Margin) -> &mut Self {
         self.margin = value;
 
         self
     }
 
-    pub fn margin(&self) -> Option<Ltrb> {
+    pub fn margin(&self) -> Margin {
         self.margin
     }
 
@@ -354,13 +440,13 @@ impl<'p> Styling<'p> {
         self.opacity
     }
 
-    pub fn opacity_as_css(&self) -> Option<Cow<'p, str>> {
+    pub fn opacity_as_css(&self) -> Cow<'p, str> {
         if let Some(value) = self.opacity {
             let opacity = Cow::from("opacity: ");
 
-            Some(opacity + Cow::Owned(format!("{:.1}", value)) + ");")
+            opacity + Cow::Owned(format!("{:.1}", value)) + ");"
         } else {
-            None
+            Cow::Borrowed("opacity: 1;")
         }
     }
 
@@ -509,51 +595,101 @@ impl<'p> Styling<'p> {
 
 impl<'p> StyleDeclaration for Styling<'p> {
     fn to_css(&self) -> Cow<str> {
-        let prefix = Cow::Borrowed("{");
-        let suffix = Cow::Borrowed("}");
+        let prefix = Cow::Borrowed("{ ");
+        let suffix = Cow::Borrowed(" }");
 
-        prefix + suffix
-        /*
-             fill_max_width: bool,
-        fill_max_height: bool,
-        min_height: usize,
-        min_width: usize,
-        max_height: usize,
-        max_width: usize,
-        width: usize,  //Taken as percentage of width available from parent element
-        height: usize, //Taken as percentage of width available from parent element
-        width_as_pixels: bool,
-        height_as_pixels: bool,
-        direction: Direction,
-        alignment: FlexAlignment,
-        wrap: Wrap,
-        background: Option<Background<'p>>,
-        z_index: u8,
-        grow: Option<u8>,
-        shrink: Option<u8>,
-        border: Option<Border>,
-        border_radius: Option<usize>,
-        padding: Option<Ltrb>,
-        margin: Option<Ltrb>,
-        rotate: u16,
-        scale: Option<Coordinates>,
-        animation: (),
-        opacity: Option<u8>,
-        overflow: Overflow,
-        position: Position,
-        visibility: Visibility,
-        whitespace: WhiteSpace,
-        word_break: WordBreak,
-        word_spacing: Option<usize>,
-        line_height: Option<usize>,
-        filter: Option<Filter>,
-        backdrop_filter: Option<Filter>,
-        shadow: Option<BoxShadow>,
-             */
+        let background = if let Some(background) = self.background {
+            background.to_css().to_string() + " "
+        } else {
+            String::default()
+        };
+
+        let filter = if let Some(filter) = self.filter {
+            filter.to_css().to_string() + " "
+        } else {
+            String::default()
+        };
+
+        let backdrop_filter = if let Some(backdrop_filter) = self.backdrop_filter {
+            backdrop_filter.to_css().to_string() + " "
+        } else {
+            String::default()
+        };
+
+        let scale = if let Some(scale) = self.scale_as_css() {
+            scale + " "
+        } else {
+            Cow::default()
+        };
+
+        let shadow = if let Some(shadow) = self.shadow {
+            shadow.to_css().to_string() + " "
+        } else {
+            String::default()
+        };
+
+        prefix
+            + self.max_width_to_css()
+            + " "
+            + self.max_height_to_css()
+            + " "
+            + self.min_width_to_css()
+            + " "
+            + self.min_height_to_css()
+            + " "
+            + self.width_to_css()
+            + " "
+            + self.height_to_css()
+            + " "
+            + self.direction.to_css()
+            + " "
+            + self.alignment.to_css()
+            + " "
+            + self.wrap.to_css()
+            + " "
+            + Cow::Owned(background)
+            + " "
+            + self.z_index_to_css()
+            + " "
+            + self.grow_to_css()
+            + " "
+            + self.shrink_to_css()
+            + " "
+            + self.border.to_css()
+            + " "
+            + self.border_radius.to_css()
+            + " "
+            + self.padding.to_css()
+            + " "
+            + self.margin.to_css()
+            + " "
+            + self.rotate_as_css()
+            + " "
+            + scale
+            + self.opacity_as_css()
+            + " "
+            + self.overflow.to_css()
+            + " "
+            + self.position.to_css()
+            + " "
+            + self.visibility.to_css()
+            + " "
+            + self.whitespace.to_css()
+            + " "
+            + self.word_break.to_css()
+            + " "
+            + self.word_spacing_as_css()
+            + " "
+            + self.line_height_as_css()
+            + " "
+            + Cow::Owned(filter)
+            + Cow::Owned(backdrop_filter)
+            + Cow::Owned(shadow)
+            + suffix
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
 pub struct Border {
     pub width_top: usize,
     pub width_top_color: HexColor,
@@ -815,5 +951,77 @@ impl StyleDeclaration for BoxShadow {
             + spread_radius
             + " "
             + color
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
+pub struct BorderRadius {
+    pub top_left_radius: usize,
+    pub top_right_radius: usize,
+    pub bottom_left_radius: usize,
+    pub bottom_right_radius: usize,
+}
+
+impl StyleDeclaration for BorderRadius {
+    fn to_css(&self) -> Cow<str> {
+        let border_top_left_radius = Cow::Borrowed("border-top-left-radius: ")
+            + Cow::Owned(self.top_left_radius.to_string())
+            + "px;";
+        let border_top_right_radius = Cow::Borrowed("border-top-right-radius: ")
+            + Cow::Owned(self.top_right_radius.to_string())
+            + "px;";
+        let border_bottom_left_radius = Cow::Borrowed("border-bottom-left-radius: ")
+            + Cow::Owned(self.bottom_left_radius.to_string())
+            + "px;";
+        let border_bottom_right_radius = Cow::Borrowed("border-bottom-right-radius: ")
+            + Cow::Owned(self.bottom_right_radius.to_string())
+            + "px;";
+
+        border_top_left_radius
+            + " "
+            + border_top_right_radius
+            + " "
+            + border_bottom_left_radius
+            + " "
+            + border_bottom_right_radius
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
+pub struct Padding {
+    pub top: usize,
+    pub bottom: usize,
+    pub left: usize,
+    pub right: usize,
+}
+
+impl StyleDeclaration for Padding {
+    fn to_css(&self) -> Cow<str> {
+        let top = Cow::Borrowed("padding-top: ") + Cow::Owned(self.top.to_string()) + "px;";
+        let bottom =
+            Cow::Borrowed("padding-bottom: ") + Cow::Owned(self.bottom.to_string()) + "px;";
+        let left = Cow::Borrowed("padding-left: ") + Cow::Owned(self.left.to_string()) + "px;";
+        let right = Cow::Borrowed("padding-right: ") + Cow::Owned(self.right.to_string()) + "px;";
+
+        top + " " + bottom + " " + left + " " + right
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
+pub struct Margin {
+    pub top: usize,
+    pub bottom: usize,
+    pub left: usize,
+    pub right: usize,
+}
+
+impl StyleDeclaration for Margin {
+    fn to_css(&self) -> Cow<str> {
+        let top = Cow::Borrowed("margin-top: ") + Cow::Owned(self.top.to_string()) + "px;";
+        let bottom = Cow::Borrowed("margin-bottom: ") + Cow::Owned(self.bottom.to_string()) + "px;";
+        let left = Cow::Borrowed("margin-left: ") + Cow::Owned(self.left.to_string()) + "px;";
+        let right = Cow::Borrowed("margin-right: ") + Cow::Owned(self.right.to_string()) + "px;";
+
+        top + " " + bottom + " " + left + " " + right
     }
 }

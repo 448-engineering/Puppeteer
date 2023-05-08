@@ -1,7 +1,7 @@
 use hex_color::HexColor;
 use puppeteer::{
     Background, Border, BoxShadow, Container, Filter, FlexAlignment, Heading, HeadingSize,
-    StyleDeclaration, UiPaint,
+    StyleDeclaration, Styling, UiPaint,
 };
 
 fn main() {
@@ -85,6 +85,14 @@ fn main() {
         box_shadow.inset = true;
         let outcome = "box-shadow: inset 0px 0px 0px 0px #000000";
         assert_eq!(outcome, box_shadow.to_css());
+    }
+
+    {
+        let style = Styling::default();
+        let outcome = "box-shadow:  0px 0px 0px 0px #000000";
+        //assert_eq!(outcome, container.to_css());
+
+        println!("{}", style.to_css());
     }
 }
 
