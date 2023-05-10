@@ -1,4 +1,4 @@
-use crate::PuppeteerResult;
+use crate::{PuppeteerResult, UiPaint};
 use wry::{
     application::{
         event::{Event, StartCause, WindowEvent},
@@ -16,7 +16,7 @@ pub struct Puppeteer<T: 'static> {
     root_ui: &'static str,
 }
 
-impl<'a, T> Puppeteer<T>
+impl<T> Puppeteer<T>
 where
     T: core::fmt::Debug + From<String>,
 {
@@ -24,6 +24,7 @@ where
         let event_loop = EventLoop::<T>::with_user_event();
         let proxy = event_loop.create_proxy();
         let window = Window::new(&event_loop).unwrap();
+        window.set_focus(); //TODO add optional
 
         Ok(Puppeteer {
             event_loop,
