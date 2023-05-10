@@ -89,10 +89,25 @@ fn main() {
 
     {
         let style = Styling::default();
-        let outcome = "box-shadow:  0px 0px 0px 0px #000000";
-        //assert_eq!(outcome, container.to_css());
+        let outcome = "max-width: 100%; max-height: none; min-width: none; min-height: none; width: auto; height: auto; flex-direction: row; align-content: center; align-items: center; align-self: center; justify-content: center; justify-items: center; justify-self: center; flex-wrap: wrap;  z-index: 0; flex-grow: 1; flex-shrink: 1; border-top: 0px solid #000000; border-bottom: 0px solid #000000; border-left: 0px solid #000000; border-right: 0px solid #000000; border-top-left-radius: 0px; border-top-right-radius: 0px; border-bottom-left-radius: 0px; border-bottom-right-radius: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 0px; padding-right: 0px; margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; transform: rotate(0deg); opacity: 1; overflow: visible; position: relative; visibility: visible; white-space: normal; word-break: normal; word-spacing: normal; line-height: normal; ";
+        assert_eq!(outcome, style.to_css());
+    }
 
-        println!("{}", style.to_css());
+    {
+        let mut container = Container::new();
+        container
+            .add_class("foo_class_1")
+            .add_id("foo_id")
+            .add_class("foo_class_2")
+            .add_class("foo_class_3")
+            .add_classes(&["foo_class_4", "foo_class_5"]);
+        //.add_style(Styling::default());
+
+        let h1 = Heading::new("This is my first heading");
+
+        container.add_child(h1);
+
+        println!("{}", &container.to_html());
     }
 }
 

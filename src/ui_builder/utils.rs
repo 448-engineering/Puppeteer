@@ -1,8 +1,10 @@
+use std::borrow::Cow;
+
 #[derive(Debug, Default)]
 pub struct TagBuilder<'p> {
     pub tag: &'p str,
-    pub id: &'p str,
-    pub class: &'p str,
+    pub id: Option<&'p str>,
+    pub class: Option<&'p str>,
     pub styles: Option<&'p str>,
 }
 
@@ -17,13 +19,13 @@ impl<'p> TagBuilder<'p> {
         self
     }
 
-    pub fn id(mut self, id: &'p str) -> Self {
+    pub fn id(mut self, id: Option<&'p str>) -> Self {
         self.id = id;
 
         self
     }
 
-    pub fn class(mut self, class: &'p str) -> Self {
+    pub fn class(mut self, class: Option<&'p str>) -> Self {
         self.class = class;
 
         self
@@ -36,15 +38,15 @@ impl<'p> TagBuilder<'p> {
     }
 
     /// Output tuple (Opening Tag, Closing Tag)
-    pub fn build(self) -> (String, String) {
-        let mut opening_tag = String::from("<");
+    pub fn build(self) -> (Cow<'p, str>, Cow<'p, str>) {
+        let mut opening_tag = Cow::Borrowed("<");
 
         opening_tag = opening_tag + self.tag;
-        if !self.id.is_empty() {
-            opening_tag = opening_tag + " " + "id=\"" + self.id + "\"";
+        if let Some(id) = self.id {
+            opening_tag = opening_tag + " " + "id=\"" + id + "\"";
         }
-        if !self.class.is_empty() {
-            opening_tag = opening_tag + " " + "class=\"" + self.class + "\"";
+        if let Some(class) = self.class {
+            opening_tag = opening_tag + " " + "class=\"" + class + "\"";
         }
 
         if let Some(styles) = self.styles {
@@ -53,7 +55,7 @@ impl<'p> TagBuilder<'p> {
 
         opening_tag = opening_tag + ">";
 
-        let closing_tag = "</".to_string() + self.tag + ">";
+        let closing_tag = Cow::Borrowed("</") + self.tag + ">";
 
         (opening_tag, closing_tag)
     }

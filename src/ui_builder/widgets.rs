@@ -1,22 +1,64 @@
 use crate::{TagBuilder, UiPaint};
+use std::borrow::Cow;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
 pub struct Heading<'p> {
     pub size: HeadingSize,
-    pub id: &'p str,
-    pub class: &'p str,
+    pub id: Option<&'p str>,
+    pub class: Option<&'p str>,
     pub content: &'p str,
 }
 
+impl<'p> Heading<'p> {
+    pub fn new(content: &'p str) -> Self {
+        Heading {
+            size: HeadingSize::default(),
+            id: Option::default(),
+            class: Option::default(),
+            content,
+        }
+    }
+
+    pub fn set_size(&mut self, size: HeadingSize) -> &mut Self {
+        self.size = size;
+
+        self
+    }
+
+    pub fn set_id(&mut self, id: &'p str) -> &mut Self {
+        self.id = Some(id);
+
+        self
+    }
+
+    pub fn set_class(&mut self, class: &'p str) -> &mut Self {
+        self.id = Some(class);
+
+        self
+    }
+
+    pub fn class(self) -> Option<&'p str> {
+        self.class
+    }
+
+    pub fn id(self) -> Option<&'p str> {
+        self.id
+    }
+
+    pub fn content(self) -> &'p str {
+        self.content
+    }
+}
+
 impl<'p> UiPaint for Heading<'p> {
-    fn to_html(&self) -> String {
+    fn to_html(&self) -> Cow<str> {
         let tags = TagBuilder::new()
             .id(self.id)
             .class(self.class)
             .tag(self.size.html_tag())
             .build();
 
-        tags.0 + self.content + tags.1.as_str()
+        tags.0 + self.content + tags.1
     }
 }
 

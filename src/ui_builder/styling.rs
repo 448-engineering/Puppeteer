@@ -595,9 +595,6 @@ impl<'p> Styling<'p> {
 
 impl<'p> StyleDeclaration for Styling<'p> {
     fn to_css(&self) -> Cow<str> {
-        let prefix = Cow::Borrowed("{ ");
-        let suffix = Cow::Borrowed(" }");
-
         let background = if let Some(background) = self.background {
             background.to_css().to_string() + " "
         } else {
@@ -628,8 +625,7 @@ impl<'p> StyleDeclaration for Styling<'p> {
             String::default()
         };
 
-        prefix
-            + self.max_width_to_css()
+        self.max_width_to_css()
             + " "
             + self.max_height_to_css()
             + " "
@@ -685,7 +681,6 @@ impl<'p> StyleDeclaration for Styling<'p> {
             + Cow::Owned(filter)
             + Cow::Owned(backdrop_filter)
             + Cow::Owned(shadow)
-            + suffix
     }
 }
 

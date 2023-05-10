@@ -1,5 +1,6 @@
 use crate::UiPaint;
+use std::borrow::Cow;
 
-pub fn to_html_event<T: UiPaint>(event: T) -> String {
-    String::from("window.ipc.postMessage('") + event.to_html().as_str() + "')"
+pub fn to_html_event<'p, T: UiPaint>(event: T) -> Cow<'p, str> {
+    Cow::Borrowed("window.ipc.postMessage('") + Cow::Owned(event.to_html().to_string()) + "')"
 }

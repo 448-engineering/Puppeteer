@@ -7,7 +7,7 @@ pub trait UiPaint {
 
     /// For an event is handled using HTML format `window.ipc.postMessage('EVENT_STRING_NAME')` .
     /// Alternatively use the `to_html_event()` function to simplify this
-    fn to_html(&self) -> String;
+    fn to_html(&self) -> Cow<str>;
 }
 
 impl core::fmt::Debug for dyn UiPaint {

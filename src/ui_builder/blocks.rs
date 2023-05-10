@@ -6,9 +6,9 @@ use std::borrow::Cow;
 #[derive(Debug, Default)]
 pub struct Container<'p> {
     id: Option<&'p str>,
-    class: Option<&'p str>,
+    class: Vec<&'p str>,
     children: Vec<Box<dyn UiPaint>>,
-    style: Styling<'p>,
+    style: Option<Styling<'p>>,
 }
 
 impl<'p> Container<'p> {
@@ -16,20 +16,34 @@ impl<'p> Container<'p> {
         Container::default()
     }
 
-    pub fn add_class(mut self, class: &'p str) -> Self {
-        self.class = Some(class);
+    pub fn add_class(&mut self, class: &'p str) -> &mut Self {
+        self.class.push(class);
 
         self
     }
 
-    pub fn add_id(mut self, id: &'p str) -> Self {
+    pub fn add_classes(&mut self, classes: &[&'p str]) -> &mut Self {
+        classes.iter().for_each(|class| {
+            self.class.push(class);
+        });
+
+        self
+    }
+
+    pub fn add_id(&mut self, id: &'p str) -> &mut Self {
         self.id = Some(id);
 
         self
     }
 
-    pub fn add_style(mut self, style: Styling<'p>) -> Self {
-        self.style = style;
+    pub fn add_style(&mut self, style: Styling<'p>) -> &mut Self {
+        self.style = Some(style);
+
+        self
+    }
+
+    pub fn add_child(&mut self, child: impl UiPaint + 'static) -> &mut Self {
+        self.children.push(Box::new(child));
 
         self
     }
@@ -38,90 +52,49 @@ impl<'p> Container<'p> {
         self.id
     }
 
-    pub fn class(&self) -> Option<&str> {
-        self.class
+    pub fn class(&self) -> &[&str] {
+        self.class.as_ref()
     }
 }
-/*
+
 impl<'p> UiPaint for Container<'p> {
-    fn to_html(&self) -> String {
-        let tags = TagBuilder::new()
-            .tag(self.html_tag())
-            .id(self.id)
-            .class(self.class)
-            .styles(self.to_css().as_deref())
-            .build();
+    fn to_html(&self) -> Cow<str> {
+        let mut opening_tag = Cow::Borrowed("<div");
 
-        let children = self
-            .children
-            .iter()
-            .map(|child| child.to_html())
-            .collect::<String>();
+        if let Some(id) = self.id {
+            opening_tag += " id=\"";
+            opening_tag += id;
+            opening_tag += "\"";
+        }
 
-        tags.0 + children.as_str() + tags.1.as_str()
+        if !self.class.is_empty() {
+            opening_tag += " class=\"";
+
+            self.class.iter().for_each(|class| {
+                opening_tag += " ";
+                opening_tag += *class;
+            });
+
+            opening_tag += " \"";
+        }
+
+        if let Some(style) = self.style.as_ref() {
+            opening_tag += " style=\" ";
+            opening_tag += style.to_css();
+            opening_tag += "\"";
+        }
+
+        opening_tag += ">";
+
+        if !self.children.is_empty() {
+            self.children.iter().for_each(|child| {
+                opening_tag += child.to_html();
+            });
+        }
+
+        opening_tag + "</div>"
     }
 }
-
-
-impl<'p> Flexible<'p> for Container<'p> {
-    fn to_css(&self) -> Option<String> {
-        let mut styles = vec![
-            self.direction().to_css(),
-            self.horizontal().to_css(),
-            self.vertical().to_css(),
-            self.wrap().to_css(),
-        ];
-
-        let mut width = String::from("width: ");
-        let mut height = String::from("height: ");
-
-        if self.width != 0 {
-            width = width + self.compute_css_width().as_str() + ";";
-            styles.push(&width);
-        }
-
-        if self.height != 0 {
-            height = height + self.compute_css_height().as_str() + ";";
-            styles.push(&height);
-        }
-        style_builder_prebuilt(&styles)
-    }
-
-    fn html_tag(&self) -> &str {
-        "div"
-    }
-}
-
-impl<'p, T: UiPaint + core::fmt::Debug + PartialEq + PartialOrd + Eq + Ord + Clone + Copy> UiPaint
-    for Flexible<'p, T>
-{
-    fn to_html(&self) -> String {
-        let mut styles_raw = Vec::<(&str, String)>::new();
-
-        if self.grow == 0u8 {
-            styles_raw[0] = ("flex-grow", "none".to_owned());
-        } else {
-            styles_raw[0] = ("flex-grow", self.grow.to_string());
-        }
-        if self.shrink == 0u8 {
-            styles_raw[1] = ("flex-shrink", "none".to_owned());
-        } else {
-            styles_raw[1] = ("flex-shrink", self.shrink.to_string());
-        }
-
-        let styles = style_builder(&styles_raw);
-
-        let tags = TagBuilder::new()
-            .tag("div")
-            .id(self.id)
-            .class(self.class)
-            .styles(styles.as_deref())
-            .build();
-
-        tags.0 + self.child.to_html().as_str() + tags.1.as_str()
-    }
-}
-*/
 
 pub struct Spacer {}
 
