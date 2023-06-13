@@ -1,4 +1,4 @@
-use crate::{PuppeteerResult, UiPaint};
+use crate::PuppeteerResult;
 use wry::{
     application::{
         event::{Event, StartCause, WindowEvent},

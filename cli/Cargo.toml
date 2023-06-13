@@ -1,0 +1,13 @@
+[package]
+name = "puppeteer"
+authors = ["Charles Chege <superuser@448.africa>"]
+version = "0.2.0-alpha1"
+edition = "2021"
+description = "Commandline App for Developing with Puppeteer, A Minimal Dependency Easy to Use GUI Builder in Rust using Async Channels"
+categories = ["graphics", "gui"]
+keywords = ["puppeteer", "gui", "graphics", "web", "frontend"]
+license = "MIT OR Apache-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

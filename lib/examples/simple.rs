@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use puppeteer::{Container, Heading, Puppeteer, PuppeteerUtils, UiPaint};
+use puppeteer_types::{Container, Heading, Puppeteer, PuppeteerUtils, UiPaint};
 use wry::{
     application::{event_loop::ControlFlow, window::WindowBuilder},
     webview::WebView,
