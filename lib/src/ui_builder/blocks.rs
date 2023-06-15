@@ -1,6 +1,7 @@
 use crate::{StyleDeclaration, Styling, UiPaint, DEFAULT_SVG_AS_BYTES};
 use base64ct::{Base64, Encoding};
 use core::fmt;
+use hex_color::HexColor;
 use std::borrow::Cow;
 
 #[derive(Debug, Default)]
@@ -42,8 +43,8 @@ impl<'p> Container<'p> {
         self
     }
 
-    pub fn add_child(&mut self, child: impl UiPaint + 'static) -> &mut Self {
-        self.children.push(Box::new(child));
+    pub fn add_child(&mut self, child: Box<dyn UiPaint>) -> &mut Self {
+        self.children.push(child);
 
         self
     }
@@ -132,15 +133,62 @@ pub struct CustomTitleBar {}
 
 pub struct BorderBottomBar {}
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Image<'p> {
-    content: &'p [u8],
+    content: Vec<u8>,
     image_type: ImageType,
+    alt: &'p str,
 } //Image types - SVG, AVIF
+
+impl<'p> Image<'p> {
+    pub fn new(content: Vec<u8>) -> Self {
+        Image {
+            content: content.to_vec(),
+            image_type: ImageType::Svg,
+            alt: "",
+        }
+    }
+
+    pub fn set_image_type(mut self, image_type: ImageType) -> Self {
+        self.image_type = image_type;
+
+        self
+    }
+
+    pub fn set_alt(mut self, alt: &'p str) -> Self {
+        self.alt = alt;
+
+        self
+    }
+
+    pub fn content(&self) -> &[u8] {
+        &self.content
+    }
+
+    pub fn alt(&self) -> &str {
+        self.alt
+    }
+
+    pub fn image_type(&self) -> ImageType {
+        self.image_type
+    }
+}
+
+impl<'p> UiPaint for Image<'p> {
+    fn to_html(&self) -> Cow<str> {
+        Cow::Borrowed(r#"<img src=""#)
+            + self.to_css()
+            + r#"""#
+            + " "
+            + r#"alt=""#
+            + self.alt
+            + r#"""#
+    }
+}
 
 impl<'p> StyleDeclaration for Image<'p> {
     fn to_css(&self) -> Cow<str> {
-        let encoded = Base64::encode_string(self.content);
+        let encoded = Base64::encode_string(&self.content);
 
         self.image_type.to_css() + Cow::Owned(encoded)
     }
@@ -149,8 +197,9 @@ impl<'p> StyleDeclaration for Image<'p> {
 impl<'p> Default for Image<'p> {
     fn default() -> Self {
         Image {
-            content: DEFAULT_SVG_AS_BYTES,
+            content: DEFAULT_SVG_AS_BYTES.to_vec(),
             image_type: ImageType::Svg,
+            alt: "",
         }
     }
 }
@@ -161,7 +210,7 @@ impl<'p> fmt::Debug for Image<'p> {
             f,
             "[{:?} IMAGE => {}]",
             self.image_type,
-            blake3::hash(self.content)
+            blake3::hash(&self.content)
         )
     }
 }
@@ -172,7 +221,7 @@ impl<'p> fmt::Display for Image<'p> {
             f,
             "[IMAGE TYPE => {} - Blake3 Hash => {}]",
             self.image_type.as_str(),
-            blake3::hash(self.content)
+            blake3::hash(&self.content)
         )
     }
 }
@@ -253,4 +302,41 @@ pub struct List {
     list_style_position
     list_style_type
     */
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Default)]
+pub struct DefaultSplashScreen;
+
+#[cfg(debug_assertions)]
+impl<'p> DefaultSplashScreen {
+    pub fn dark() -> Container<'p> {
+        DefaultSplashScreen::build(HexColor::rgba(15, 15, 20, 255))
+    }
+
+    pub fn light() -> Container<'p> {
+        DefaultSplashScreen::build(HexColor::rgb(208, 208, 208))
+    }
+
+    pub fn build(color: HexColor) -> Container<'p> {
+        let mut container = Container::new();
+        let mut style = Styling::default();
+        style.fill_max_height();
+        style.fill_max_width();
+        style.set_background(crate::Background {
+            color,
+            ..Default::default()
+        });
+
+        let image = include_str!("../../../Puppeteer-Logo.svg")
+            .as_bytes()
+            .to_vec();
+
+        let image = Image::new(image).set_image_type(ImageType::Svg);
+
+        container.add_style(style);
+        container.add_child(Box::new(image));
+
+        container
+    }
 }

@@ -1,0 +1,3 @@
+[logo]
+dark = "./logo.svg"  #Logo for when dark mode is active
+light = "./logo.svg" #Logo for when dark mode is active

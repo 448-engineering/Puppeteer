@@ -1,6 +1,5 @@
-use std::borrow::Cow;
-
 use puppeteer_types::{Container, Heading, Puppeteer, PuppeteerUtils, UiPaint};
+use std::borrow::Cow;
 use wry::{
     application::{event_loop::ControlFlow, window::WindowBuilder},
     webview::WebView,
@@ -35,7 +34,7 @@ fn custom_event_handler(
     let h1 = Heading::new("ROOT UI");
 
     let mut root_ui = Container::new();
-    root_ui.add_child(h1);
+    root_ui.add_child(Box::new(h1));
 
     let eval = {
         let element = Cow::Borrowed(r#"document.body.innerHTML=""#);

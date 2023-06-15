@@ -192,7 +192,7 @@ impl StyleDeclaration for Direction {
 
 /// Defines the background of an item.
 /// [CSS background](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Backgrounds_and_Borders)
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Default)]
 pub struct Background<'p> {
     /// The background image
     pub image: Image<'p>,
@@ -679,7 +679,7 @@ impl Float {
     }
 
     /// The sign value `Float` into a string
-    pub fn to_gloat_sign(&self) -> Cow<str> {
+    pub fn to_float_sign(&self) -> Cow<str> {
         if self.signed {
             Cow::Borrowed("-")
         } else {

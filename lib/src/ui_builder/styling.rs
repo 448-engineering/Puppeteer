@@ -278,8 +278,8 @@ impl<'p> Styling<'p> {
         self
     }
 
-    pub fn background(&self) -> Option<Background> {
-        self.background
+    pub fn background(&self) -> Option<&Background> {
+        self.background.as_ref()
     }
 
     pub fn set_z_index(&mut self, value: u8) -> &mut Self {
@@ -595,7 +595,7 @@ impl<'p> Styling<'p> {
 
 impl<'p> StyleDeclaration for Styling<'p> {
     fn to_css(&self) -> Cow<str> {
-        let background = if let Some(background) = self.background {
+        let background = if let Some(background) = self.background.as_ref() {
             background.to_css().to_string() + " "
         } else {
             String::default()

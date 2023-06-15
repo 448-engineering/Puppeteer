@@ -1,4 +1,4 @@
-use crate::PuppeteerResult;
+use crate::{PuppeteerResult, UiPaint};
 use wry::{
     application::{
         event::{Event, StartCause, WindowEvent},
@@ -13,14 +13,14 @@ pub struct Puppeteer<T: 'static> {
     event_loop: EventLoop<T>,
     proxy: EventLoopProxy<T>,
     window: Window,
-    root_ui: &'static str,
+    root_ui: Box<dyn UiPaint>,
 }
 
 impl<T> Puppeteer<T>
 where
     T: core::fmt::Debug + From<String>,
 {
-    pub fn new(root_ui: &'static str) -> PuppeteerResult<Self> {
+    pub fn new(root_ui: Box<dyn UiPaint>) -> PuppeteerResult<Self> {
         let event_loop = EventLoop::<T>::with_user_event();
         let proxy = event_loop.create_proxy();
         let window = Window::new(&event_loop).unwrap();
@@ -57,7 +57,7 @@ where
         let handler = Puppeteer::handler(self.proxy);
         let mut webview = Some(
             WebViewBuilder::new(self.window)?
-                .with_html(self.root_ui)?
+                .with_html(self.root_ui.to_html())?
                 .with_ipc_handler(handler)
                 .with_accept_first_mouse(true)
                 .build()?,

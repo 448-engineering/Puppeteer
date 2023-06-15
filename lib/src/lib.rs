@@ -23,6 +23,13 @@ pub use helpers::*;
 mod ui_builder;
 pub use ui_builder::*;
 
+// Re-export the crates for uniformity of crate versions
+pub use base64ct;
+pub use blake3;
+pub use camino;
+pub use hex_color;
+pub use wry;
+
 #[cfg(test)]
 mod sanity_tests {
     use crate::{
@@ -137,7 +144,7 @@ mod sanity_tests {
 
         let h1 = Heading::new("This is my first heading");
 
-        container.add_child(h1);
+        container.add_child(Box::new(h1));
 
         assert_eq!("<div id=\"foo_id\" class=\" foo_class_1 foo_class_2 foo_class_3 foo_class_4 foo_class_5 \"><h1>This is my first heading</h1></div>", &container.to_html());
     }
