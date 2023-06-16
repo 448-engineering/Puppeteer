@@ -7,7 +7,7 @@ fn main() {
     smol::block_on(async {
         #[cfg(feature = "dev")]
         crate::watcher().await;
-        #[cfg(not(debug_assertions))]
+        #[cfg(not(feature = "dev"))]
         println!("Hello World");
     })
 }

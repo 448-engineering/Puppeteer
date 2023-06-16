@@ -24,7 +24,13 @@ impl<'a> Logger<'a> {
         Logger {
             symbol: Paint::cyan(Cow::Borrowed(SPACING) + "=>"),
             header: Paint::yellow(
-                Cow::Borrowed("-------- PUPPETEER ") + "v" + pkg_version() + "--------\n",
+                Cow::Borrowed("-------- ")
+                    + pkg_name()
+                    + " "
+                    + "v"
+                    + pkg_version()
+                    + " "
+                    + "--------\n",
             ),
             label: Option::None,
             body: Paint::green(Cow::Borrowed(body)),
@@ -60,4 +66,8 @@ impl<'a> Logger<'a> {
 
 pub fn pkg_version<'a>() -> Cow<'a, str> {
     Cow::Borrowed(env!("CARGO_PKG_VERSION"))
+}
+
+pub fn pkg_name<'a>() -> Cow<'a, str> {
+    Cow::Borrowed(env!("CARGO_PKG_NAME"))
 }
