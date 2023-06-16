@@ -4,6 +4,7 @@ mod dev_operations;
 pub use dev_operations::*;
 
 fn main() {
+    #[cfg(feature = "native")]
     smol::block_on(async {
         #[cfg(feature = "dev")]
         crate::watcher().await;

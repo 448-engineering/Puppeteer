@@ -3,10 +3,6 @@ use wry::application::{
     window::{Fullscreen, Window},
 };
 
-pub const DEFAULT_SVG: &str = "<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><path d='m0 0h100v100h-100z' fill='#f00' stroke-width='.829695'/><path d='m13.778851 13.77885h72.442299v72.442299h-72.442299z' fill='#0f0' stroke-width='.60105'/><path d='m28.070158 28.07016h43.859684v43.859684h-43.859684z' fill='#00f' stroke-width='.363902'/><path d='m40.307922 40.30792h19.384157v19.384157h-19.384157z' fill='#fff' stroke-width='.16083'/></svg>";
-
-pub const DEFAULT_SVG_AS_BYTES: &[u8] = DEFAULT_SVG.as_bytes();
-
 #[derive(Debug)]
 pub struct PuppeteerUtils<'a> {
     window: &'a Window,

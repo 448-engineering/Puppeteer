@@ -1,4 +1,6 @@
 use crate::{PuppeteerResult, UiPaint};
+
+#[cfg(feature = "native")]
 use wry::{
     application::{
         event::{Event, StartCause, WindowEvent},

@@ -11,13 +11,17 @@
 mod errors;
 pub use errors::*;
 
+#[cfg(feature = "native")]
 mod app;
+#[cfg(feature = "native")]
 pub use app::*;
 
 mod traits;
 pub use traits::*;
 
+#[cfg(feature = "native")]
 mod helpers;
+#[cfg(feature = "native")]
 pub use helpers::*;
 
 mod ui_builder;
@@ -27,8 +31,17 @@ pub use ui_builder::*;
 pub use base64ct;
 pub use blake3;
 pub use camino;
+#[cfg(feature = "dev")]
+pub use cargo_toml;
 pub use hex_color;
+#[cfg(feature = "dev")]
+pub use notify;
+#[cfg(feature = "native")]
+pub use smol;
+#[cfg(feature = "native")]
 pub use wry;
+#[cfg(feature = "dev")]
+pub use yansi;
 
 #[cfg(test)]
 mod sanity_tests {
