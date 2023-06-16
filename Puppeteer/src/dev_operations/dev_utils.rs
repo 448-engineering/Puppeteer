@@ -1,6 +1,9 @@
 use std::{borrow::Cow, env};
 use yansi::Paint;
 
+pub(crate) const PKG_NAME: &str = pkg_name();
+pub(crate) const PKG_VERSION: &str = pkg_version();
+
 /// Specifies the default path to look for the `wasm32-unknown-unknown` binary
 pub const WASM32_DIR: &str = "./target/wasm32-unknown-unknown/debug/";
 /// Specifies the default buffer capacity
@@ -8,8 +11,14 @@ pub const BUFFER_CAPACITY: usize = 64 * 1024;
 /// The spacing fot logging information
 pub const SPACING: &str = "     ";
 /// The default cargo command executed after watched file(s) have been updated
-pub const DEFAULT_BUILD_COMMAND: [&str; 4] =
-    ["cargo", "build", "--target", "wasm32-unknown-unknown"];
+pub const DEFAULT_BUILD_COMMAND: [&str; 6] = [
+    "cargo",
+    "build",
+    "--target",
+    "wasm32-unknown-unknown",
+    "--lib",
+    "--no-default-features",
+];
 
 #[derive(Debug, Default)]
 pub struct Logger<'a> {
@@ -25,10 +34,10 @@ impl<'a> Logger<'a> {
             symbol: Paint::cyan(Cow::Borrowed(SPACING) + "=>"),
             header: Paint::yellow(
                 Cow::Borrowed("-------- ")
-                    + pkg_name()
+                    + crate::PKG_NAME
                     + " "
                     + "v"
-                    + pkg_version()
+                    + crate::PKG_VERSION
                     + " "
                     + "--------\n",
             ),
@@ -48,7 +57,7 @@ impl<'a> Logger<'a> {
             + " "
             + header
             + "v"
-            + pkg_version()
+            + crate::PKG_VERSION
             + " "
             + "--------"
             + "\n";
@@ -64,10 +73,10 @@ impl<'a> Logger<'a> {
     }
 }
 
-pub fn pkg_version<'a>() -> Cow<'a, str> {
-    Cow::Borrowed(env!("CARGO_PKG_VERSION"))
+pub const fn pkg_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
 }
 
-pub fn pkg_name<'a>() -> Cow<'a, str> {
-    Cow::Borrowed(env!("CARGO_PKG_NAME"))
+pub const fn pkg_name() -> &'static str {
+    env!("CARGO_PKG_NAME")
 }

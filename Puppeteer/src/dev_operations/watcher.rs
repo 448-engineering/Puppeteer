@@ -1,9 +1,13 @@
-use camino::Utf8Path;
+use camino::{Utf8Path, Utf8PathBuf};
 use notify::{event::AccessMode, Event, EventKind, RecursiveMode, Result as NotifyResult, Watcher};
 use smol::channel::bounded;
 
 pub(crate) async fn watcher() {
-    let path = Utf8Path::new(crate::WASM32_DIR);
+    let read_manifest = crate::read_manifest_file().await.unwrap();
+    let mut wasm32_dir_path = Utf8PathBuf::new();
+    wasm32_dir_path.push(crate::WASM32_DIR);
+    wasm32_dir_path.push(read_manifest.to_string().as_str());
+    wasm32_dir_path.set_extension("wasm");
 
     let (sender, receiver) = bounded::<()>(100);
 
@@ -25,7 +29,7 @@ pub(crate) async fn watcher() {
                     println!("{}{}{}", logger.symbol, logger.label.unwrap(), logger.body,);
                     //Unwrap here never fails
 
-                    //smol::block_on(async { sender.send(()).await.unwrap() })
+                    smol::block_on(async { sender.send(()).await.unwrap() })
                 } else {
                     ()
                 }
@@ -44,5 +48,5 @@ pub(crate) async fn watcher() {
             .unwrap();
     });
 
-    super::exec(&path, receiver).await.unwrap();
+    super::exec(&wasm32_dir_path, receiver).await.unwrap();
 }
