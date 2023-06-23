@@ -24,3 +24,9 @@ pub use styling::*;
 
 mod text;
 pub use text::*;
+
+mod title_bar;
+pub use title_bar::*;
+
+mod splashscreen;
+pub use splashscreen::*;

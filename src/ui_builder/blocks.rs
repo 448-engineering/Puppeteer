@@ -128,14 +128,12 @@ pub struct Audio {}
 
 pub struct Video {}
 
-pub struct CustomTitleBar {}
-
 pub struct BorderBottomBar {}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Image<'p> {
-    content: &'p [u8],
-    image_type: ImageType,
+    pub content: &'p [u8],
+    pub image_type: ImageType,
 } //Image types - SVG, AVIF
 
 impl<'p> StyleDeclaration for Image<'p> {

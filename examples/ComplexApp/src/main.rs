@@ -1,8 +1,21 @@
 use puppeteer::{Container, Heading, Puppeteer, PuppeteerUtils, UiPaint};
-use wry::{application::event_loop::ControlFlow, webview::WebView};
+use std::borrow::Cow;
+use wry::{
+    application::{event_loop::ControlFlow, window::WindowBuilder},
+    webview::WebView,
+};
+
+const INITIAL_UI: &str = include_str!("../pages/complex.html");
 
 fn main() {
-    Puppeteer::<CustomEvent>::new("Simple App")
+    let window = WindowBuilder::new()
+        .with_decorations(false)
+        .with_focused(true)
+        .with_title("Puppeteer");
+
+    Puppeteer::<CustomEvent>::new(INITIAL_UI)
+        .unwrap()
+        .set_window(window)
         .unwrap()
         .run(custom_event_handler)
         .unwrap();
@@ -20,7 +33,7 @@ fn custom_event_handler(
     webview: &mut Option<WebView>,
     control_flow: &mut ControlFlow,
 ) {
-    /*let h1 = Heading::new("ROOT UI");
+    let h1 = Heading::new("ROOT UI");
 
     let mut root_ui = Container::new();
     root_ui.add_child(h1);
@@ -40,7 +53,7 @@ fn custom_event_handler(
         CustomEvent::AdjustWindow => {
             PuppeteerUtils::new(webview.as_mut().unwrap().window()).set_maximized()
         }
-    }*/
+    }
 }
 
 impl From<String> for CustomEvent {
@@ -53,3 +66,20 @@ impl From<String> for CustomEvent {
         }
     }
 }
+
+/*
+impl UiPaint for CustomEvent {
+    fn to_html(&self) -> String {
+
+    }
+
+    fn to_hml(&self) -> Self {
+        match event_as_str {
+            "close" => CustomEvent::CloseWindow,
+            "next_page" => CustomEvent::NextPage,
+            "maximize" => CustomEvent::AdjustWindow,
+            _ => CustomEvent::CloseWindow,
+        }
+    }
+}
+*/

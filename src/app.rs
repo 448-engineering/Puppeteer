@@ -1,4 +1,4 @@
-use crate::{PuppeteerResult, UiPaint};
+use crate::{Image, PuppeteerResult, SplashScreen, TitleBar, TitleBarType};
 use wry::{
     application::{
         event::{Event, StartCause, WindowEvent},
@@ -9,37 +9,52 @@ use wry::{
 };
 
 #[derive(Debug)]
-pub struct Puppeteer<T: 'static> {
+pub struct Puppeteer<'p, T: 'static> {
+    app_name: &'static str,
     event_loop: EventLoop<T>,
     proxy: EventLoopProxy<T>,
     window: Window,
-    root_ui: &'static str,
+    splash_screen: SplashScreen,
+    title_bar: TitleBar<'p>,
+    //shell // HERE load the shell after splashscreen,
+    // reset all styles by default
 }
 
-impl<T> Puppeteer<T>
+impl<'p, T> Puppeteer<'p, T>
 where
     T: core::fmt::Debug + From<String>,
 {
-    pub fn new(root_ui: &'static str) -> PuppeteerResult<Self> {
+    pub fn new(app_name: &'static str) -> PuppeteerResult<Self> {
+        let splash_screen = SplashScreen::default();
         let event_loop = EventLoop::<T>::with_user_event();
         let proxy = event_loop.create_proxy();
-        let window = Window::new(&event_loop).unwrap();
-        window.set_focus(); //TODO add optional
+        let title_bar = TitleBar::default().set_text_content(app_name);
+        let window = match title_bar.title_bar_type() {
+            TitleBarType::Native => {
+                Window::new(&event_loop).unwrap();
+            },
+            TitleBarType::Puppeteer(title) => {
+                Window::new(&event_loop).unwrap();
+            },
+            TitleBarType::None => {
+
+            }
+        }
 
         Ok(Puppeteer {
+            app_name,
             event_loop,
             proxy,
             window,
-            root_ui,
+            splash_screen,
+            title_bar,
         })
     }
 
-    pub fn set_window(mut self, window_builder: WindowBuilder) -> PuppeteerResult<Self> {
-        let window = window_builder.build(&self.event_loop)?;
+    pub fn set_splash(&mut self, splash_screen: SplashScreen) -> &mut Self {
+        self.splash_screen = splash_screen;
 
-        self.window = window;
-
-        Ok(self)
+        self
     }
 
     pub fn expose_window(&mut self) -> &mut Window {
@@ -57,7 +72,7 @@ where
         let handler = Puppeteer::handler(self.proxy);
         let mut webview = Some(
             WebViewBuilder::new(self.window)?
-                .with_html(self.root_ui)?
+                .with_html(self.splash_screen.build())?
                 .with_ipc_handler(handler)
                 .with_accept_first_mouse(true)
                 .build()?,
@@ -67,7 +82,9 @@ where
             *control_flow = ControlFlow::Wait;
 
             match event {
-                Event::NewEvents(StartCause::Init) => println!("Puppeteer Application Started"), //TODO Use logging to give more useful info about the program and window like rocket does
+                Event::NewEvents(StartCause::Init) => {
+                    //println!("Puppeteer Application Started"), //TODO Use logging to give more useful info about the program and window like rocket does
+                }
                 Event::WindowEvent {
                     event: WindowEvent::CloseRequested,
                     ..
