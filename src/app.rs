@@ -1,4 +1,4 @@
-use crate::{Image, PuppeteerResult, SplashScreen, TitleBar, TitleBarType};
+use crate::{Image, Page, PuppeteerResult, Shell, SplashScreen, TitleBar, TitleBarType};
 use wry::{
     application::{
         event::{Event, StartCause, WindowEvent},
@@ -16,6 +16,8 @@ pub struct Puppeteer<'p, T: 'static> {
     window: Window,
     splash_screen: SplashScreen,
     title_bar: TitleBar<'p>,
+    init: Option<fn() -> Page>,
+    storage: Option<fn()>,
     //shell // HERE load the shell after splashscreen,
     // reset all styles by default
 }
@@ -28,18 +30,9 @@ where
         let splash_screen = SplashScreen::default();
         let event_loop = EventLoop::<T>::with_user_event();
         let proxy = event_loop.create_proxy();
-        let title_bar = TitleBar::default().set_text_content(app_name);
-        let window = match title_bar.title_bar_type() {
-            TitleBarType::Native => {
-                Window::new(&event_loop).unwrap();
-            },
-            TitleBarType::Puppeteer(title) => {
-                Window::new(&event_loop).unwrap();
-            },
-            TitleBarType::None => {
+        let window = Window::new(&event_loop).unwrap();
 
-            }
-        }
+        let title_bar = TitleBar::default().set_text_content(app_name);
 
         Ok(Puppeteer {
             app_name,
@@ -48,6 +41,8 @@ where
             window,
             splash_screen,
             title_bar,
+            init: Option::default(),
+            storage: Option::default(),
         })
     }
 
@@ -57,22 +52,63 @@ where
         self
     }
 
+    pub fn set_title_bar(mut self, title_bar: TitleBar<'p>) -> Self {
+        self.title_bar = title_bar;
+
+        self
+    }
+
+    pub fn set_title_bar_type(mut self, title_bar: TitleBarType) -> Self {
+        self.title_bar.set_title_bar_type_borrowed(title_bar);
+
+        self
+    }
+
+    fn set_window(&mut self) -> &mut Self {
+        let window = match self.title_bar.title_bar_type() {
+            TitleBarType::Native => {
+                let window = Window::new(&self.event_loop).unwrap();
+                window.set_decorations(true);
+                window.set_focus();
+                window.set_title(self.app_name);
+
+                window
+            }
+            _ => {
+                let window = Window::new(&self.event_loop).unwrap();
+                window.set_decorations(false);
+                window.set_focus();
+                window.set_title(self.app_name);
+
+                window
+            }
+        };
+
+        self.window = window;
+
+        self
+    }
+
     pub fn expose_window(&mut self) -> &mut Window {
         &mut self.window
     }
 
     pub fn run(
-        self,
+        mut self,
         custom_event_handler: fn(
             ui_event: T,
             webview: &mut Option<WebView>,
             control_flow: &mut ControlFlow,
         ),
     ) -> PuppeteerResult<()> {
+        self.set_window();
+
+        let shell = Shell::new().set_content(self.splash_screen.build()).build();
+
         let handler = Puppeteer::handler(self.proxy);
         let mut webview = Some(
             WebViewBuilder::new(self.window)?
-                .with_html(self.splash_screen.build())?
+                .with_html(shell)?
                 .with_ipc_handler(handler)
                 .with_accept_first_mouse(true)
                 .build()?,

@@ -30,3 +30,9 @@ pub use title_bar::*;
 
 mod splashscreen;
 pub use splashscreen::*;
+
+mod page;
+pub use page::*;
+
+mod shell;
+pub use shell::*;

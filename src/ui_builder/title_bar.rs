@@ -58,6 +58,12 @@ impl<'p> TitleBar<'p> {
         self
     }
 
+    pub fn set_title_bar_type_borrowed(&mut self, title_bar_type: TitleBarType) -> &mut Self {
+        self.state = title_bar_type;
+
+        self
+    }
+
     pub fn text_content(&self) -> &Cow<'_, str> {
         &self.text_content
     }

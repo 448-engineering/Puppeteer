@@ -4,6 +4,7 @@ use wry::{application::event_loop::ControlFlow, webview::WebView};
 fn main() {
     Puppeteer::<CustomEvent>::new("Simple App")
         .unwrap()
+        //.set_title_bar_type(puppeteer::TitleBarType::Native)
         .run(custom_event_handler)
         .unwrap();
 }
