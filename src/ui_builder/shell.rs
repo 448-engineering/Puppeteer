@@ -1,9 +1,10 @@
-use crate::SplashScreen;
-use std::borrow::Cow;
+use crate::{SplashScreen, UiPaint};
+use std::borrow::{Borrow, Cow};
 
+#[derive(Debug)]
 pub struct Shell<'p> {
     title: &'p str,
-    content: Cow<'p, str>,
+    content: Box<dyn UiPaint>,
     style: Cow<'p, str>, // The styling for the shell for example CSS reset styles.
 }
 
@@ -18,7 +19,7 @@ impl<'p> Shell<'p> {
         self
     }
 
-    pub fn set_content(mut self, content: Cow<'p, str>) -> Self {
+    pub fn set_content(mut self, content: Box<dyn UiPaint>) -> Self {
         self.content = content;
 
         self
@@ -34,15 +35,17 @@ impl<'p> Shell<'p> {
         self.title
     }
 
-    pub fn content(&self) -> &Cow<'p, str> {
+    pub fn content(&self) -> &Box<dyn UiPaint> {
         &self.content
     }
 
     pub fn style(&self) -> &Cow<'p, str> {
         &self.style
     }
+}
 
-    pub fn build(self) -> Cow<'p, str> {
+impl<'p> UiPaint for Shell<'p> {
+    fn to_html(&self) -> Cow<str> {
         Cow::Borrowed("<!DOCTYPE html>")
             + "<head>"
             + r#"<meta charset="UTF-8">"#
@@ -51,11 +54,11 @@ impl<'p> Shell<'p> {
             + self.title
             + "</title>"
             + "<style>\n"
-            + self.style
+            + self.style.borrow()
             + "\n</style>"
             + "</head>"
-            + "<body>"
-            + self.content
+            + "<body"
+            + self.content.to_html()
             + "</body>"
             + "</html>"
     }
@@ -65,7 +68,7 @@ impl<'p> Default for Shell<'p> {
     fn default() -> Self {
         Shell {
             title: "Puppeteer App",
-            content: SplashScreen::default().build(),
+            content: Box::new(SplashScreen::default()),
             style: CSS_RESET_STYLE.into(),
         }
     }

@@ -1,11 +1,11 @@
-use puppeteer::{Container, Heading, Puppeteer, PuppeteerUtils, UiPaint};
-use wry::{application::event_loop::ControlFlow, webview::WebView};
+use puppeteer::Puppeteer;
 
 fn main() {
-    Puppeteer::<CustomEvent>::new("Simple App")
+    Puppeteer::new("Simple App")
         .unwrap()
+        .set_init(init)
         //.set_title_bar_type(puppeteer::TitleBarType::Native)
-        .run(custom_event_handler)
+        .run()
         .unwrap();
 }
 
@@ -14,34 +14,7 @@ enum CustomEvent {
     CloseWindow,
     NextPage,
     AdjustWindow,
-}
-
-fn custom_event_handler(
-    custom_event: CustomEvent,
-    webview: &mut Option<WebView>,
-    control_flow: &mut ControlFlow,
-) {
-    /*let h1 = Heading::new("ROOT UI");
-
-    let mut root_ui = Container::new();
-    root_ui.add_child(h1);
-
-    let eval = {
-        let element = Cow::Borrowed(r#"document.body.innerHTML=""#);
-
-        element + root_ui.to_html() + r#"";"#
-    };
-
-    match custom_event {
-        CustomEvent::CloseWindow => {
-            let _ = webview.take();
-            *control_flow = ControlFlow::Exit
-        }
-        CustomEvent::NextPage => webview.as_mut().unwrap().evaluate_script(&eval).unwrap(),
-        CustomEvent::AdjustWindow => {
-            PuppeteerUtils::new(webview.as_mut().unwrap().window()).set_maximized()
-        }
-    }*/
+    Onload,
 }
 
 impl From<String> for CustomEvent {
@@ -50,7 +23,16 @@ impl From<String> for CustomEvent {
             "close" => CustomEvent::CloseWindow,
             "next_page" => CustomEvent::NextPage,
             "maximize" => CustomEvent::AdjustWindow,
+            "onload" => CustomEvent::Onload,
             _ => CustomEvent::CloseWindow,
         }
     }
+}
+
+pub fn init() -> bool {
+    println!("RUNNING INIT");
+
+    std::thread::sleep(std::time::Duration::from_secs(4));
+
+    true
 }

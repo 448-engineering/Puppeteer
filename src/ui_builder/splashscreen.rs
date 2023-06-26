@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use crate::UiPaint;
+
 const PUPPETEER_LOGO: &str = include_str!("./Puppeteer-Logo.svg");
 
 const DEFAULT_SPLASH_STYLE: &str = r#"
@@ -52,8 +54,10 @@ impl SplashScreen {
     pub fn style(&self) -> Option<&str> {
         self.style
     }
+}
 
-    pub fn build(self) -> Cow<'static, str> {
+impl UiPaint for SplashScreen {
+    fn to_html(&self) -> Cow<str> {
         let splash_open = Cow::Borrowed(r#"<div id="splashscreen""#);
         let close_div = "</div>";
         let logo_parent = r#"<div style="width: 50%;">"#;

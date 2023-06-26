@@ -1,34 +1,37 @@
-use crate::{Image, Page, PuppeteerResult, Shell, SplashScreen, TitleBar, TitleBarType};
+use crate::{PuppeteerResult, Shell, SplashScreen, TitleBar, TitleBarType, UiPaint};
+use std::collections::HashMap;
 use wry::{
     application::{
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop, EventLoopProxy},
-        window::{Window, WindowBuilder},
+        window::Window,
     },
-    webview::{WebView, WebViewBuilder},
+    webview::WebViewBuilder,
 };
 
+pub type UiEvent = u64;
+pub type UiPaintBoxed = Box<(dyn UiPaint + 'static)>;
+pub type EventsMap = HashMap<u64, (&'static str, fn() -> UiPaintBoxed)>;
+
 #[derive(Debug)]
-pub struct Puppeteer<'p, T: 'static> {
+pub struct Puppeteer<'p> {
     app_name: &'static str,
-    event_loop: EventLoop<T>,
-    proxy: EventLoopProxy<T>,
+    event_loop: EventLoop<UiEvent>,
+    proxy: EventLoopProxy<UiEvent>,
     window: Window,
-    splash_screen: SplashScreen,
     title_bar: TitleBar<'p>,
-    init: Option<fn() -> Page>,
+    shell: Shell<'p>,
+    active: UiPaintBoxed,
+    events: EventsMap,
+    init_func: Option<fn() -> bool>,
     storage: Option<fn()>,
-    //shell // HERE load the shell after splashscreen,
     // reset all styles by default
 }
 
-impl<'p, T> Puppeteer<'p, T>
-where
-    T: core::fmt::Debug + From<String>,
-{
+impl<'p> Puppeteer<'p> {
     pub fn new(app_name: &'static str) -> PuppeteerResult<Self> {
         let splash_screen = SplashScreen::default();
-        let event_loop = EventLoop::<T>::with_user_event();
+        let event_loop = EventLoop::<UiEvent>::with_user_event();
         let proxy = event_loop.create_proxy();
         let window = Window::new(&event_loop).unwrap();
 
@@ -39,15 +42,23 @@ where
             event_loop,
             proxy,
             window,
-            splash_screen,
             title_bar,
-            init: Option::default(),
+            shell: Shell::default(),
+            active: Box::new(splash_screen),
+            events: HashMap::default(),
+            init_func: Option::default(),
             storage: Option::default(),
         })
     }
 
+    pub fn set_init(mut self, init_func: fn() -> bool) -> Self {
+        self.init_func = Some(init_func);
+
+        self
+    }
+
     pub fn set_splash(&mut self, splash_screen: SplashScreen) -> &mut Self {
-        self.splash_screen = splash_screen;
+        self.active = Box::new(splash_screen);
 
         self
     }
@@ -93,57 +104,72 @@ where
         &mut self.window
     }
 
-    pub fn run(
-        mut self,
-        custom_event_handler: fn(
-            ui_event: T,
-            webview: &mut Option<WebView>,
-            control_flow: &mut ControlFlow,
-        ),
-    ) -> PuppeteerResult<()> {
+    pub fn register_event(&mut self, event: (&'static str, fn() -> UiPaintBoxed)) -> &mut Self {
+        self.events.insert(seahash::hash(event.0.as_bytes()), event);
+
+        self
+    }
+
+    pub fn list_events(&self) -> &EventsMap {
+        &self.events
+    }
+
+    pub fn run(mut self) -> PuppeteerResult<()> {
         self.set_window();
 
-        let shell = Shell::new().set_content(self.splash_screen.build()).build();
+        let proxy = self.proxy.clone();
 
+        let shell = self.shell.set_content(self.active);
         let handler = Puppeteer::handler(self.proxy);
-        let mut webview = Some(
-            WebViewBuilder::new(self.window)?
-                .with_html(shell)?
-                .with_ipc_handler(handler)
-                .with_accept_first_mouse(true)
-                .build()?,
-        );
+        let webview = WebViewBuilder::new(self.window)?
+            .with_html(shell.to_html())?
+            .with_ipc_handler(handler)
+            .build()?;
+
+        let init_func = self.init_func.unwrap();
+
+        smol::spawn(async move {
+            init_func();
+            proxy.send_event(seahash::hash(b"initializedApp")).unwrap();
+        })
+        .detach();
 
         self.event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Wait;
 
             match event {
                 Event::NewEvents(StartCause::Init) => {
-                    //println!("Puppeteer Application Started"), //TODO Use logging to give more useful info about the program and window like rocket does
+                    //println!("Puppeteer Application Started"); //TODO Use logging to give more useful info about the program and window like rocket does
                 }
                 Event::WindowEvent {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => {
-                    let _ = webview.take();
+                    //let _ = webview.take();
                     *control_flow = ControlFlow::Exit
                 }
                 Event::UserEvent(ui_event) => {
-                    custom_event_handler(ui_event, &mut webview, control_flow)
+                    if ui_event == seahash::hash(b"initializedApp") {
+
+                        webview
+                            .evaluate_script(
+                                r#"document.body.innerHTML = "<html><body>AFTER SPLASH</body></html>""#,
+                            )
+                            .unwrap();
+                    }
                 }
                 _ => (),
             }
         });
     }
 
-    fn handler(proxy: EventLoopProxy<T>) -> impl Fn(&Window, String) {
+    fn handler(proxy: EventLoopProxy<UiEvent>) -> impl Fn(&Window, String) {
         move |window: &Window, req: String| match req.as_str() {
             "minimize" => window.set_minimized(true),
             "maximize" => window.set_maximized(!window.is_maximized()),
             "drag_window" => window.drag_window().unwrap(), //FIXME Handle me
             _ => {
-                let custom_event: T = req.into();
-                proxy.send_event(custom_event).unwrap(); //FIXME
+                proxy.send_event(seahash::hash(req.as_bytes())).unwrap(); //FIXME
             }
         }
     }
