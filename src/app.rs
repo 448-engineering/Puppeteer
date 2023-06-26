@@ -23,9 +23,6 @@ pub struct Puppeteer<'p> {
     shell: Shell<'p>,
     active: UiPaintBoxed,
     events: EventsMap,
-    init_func: Option<fn() -> bool>,
-    storage: Option<fn()>,
-    // reset all styles by default
 }
 
 impl<'p> Puppeteer<'p> {
@@ -46,15 +43,7 @@ impl<'p> Puppeteer<'p> {
             shell: Shell::default(),
             active: Box::new(splash_screen),
             events: HashMap::default(),
-            init_func: Option::default(),
-            storage: Option::default(),
         })
-    }
-
-    pub fn set_init(mut self, init_func: fn() -> bool) -> Self {
-        self.init_func = Some(init_func);
-
-        self
     }
 
     pub fn set_splash(&mut self, splash_screen: SplashScreen) -> &mut Self {
@@ -114,7 +103,7 @@ impl<'p> Puppeteer<'p> {
         &self.events
     }
 
-    pub fn run(mut self) -> PuppeteerResult<()> {
+    pub fn run(mut self, init_func: fn() -> bool) -> PuppeteerResult<()> {
         self.set_window();
 
         let proxy = self.proxy.clone();
@@ -125,8 +114,6 @@ impl<'p> Puppeteer<'p> {
             .with_html(shell.to_html())?
             .with_ipc_handler(handler)
             .build()?;
-
-        let init_func = self.init_func.unwrap();
 
         smol::spawn(async move {
             init_func();

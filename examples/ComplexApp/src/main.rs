@@ -62,6 +62,7 @@ impl From<String> for CustomEvent {
             "close" => CustomEvent::CloseWindow,
             "next_page" => CustomEvent::NextPage,
             "maximize" => CustomEvent::AdjustWindow,
+            "onload" => CustomEvent::Onload,
             _ => CustomEvent::CloseWindow,
         }
     }
