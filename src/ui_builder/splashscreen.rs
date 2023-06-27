@@ -1,6 +1,5 @@
-use std::borrow::Cow;
-
 use crate::UiPaint;
+use std::borrow::Cow;
 
 const PUPPETEER_LOGO: &str = include_str!("./Puppeteer-Logo.svg");
 
@@ -20,14 +19,15 @@ const DEFAULT_SPLASH_STYLE: &str = r#"
         padding: 0%;
         margin: 0%;
         box-sizing: border-box;
+        flex-direction: column;
     "
 "#;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SplashScreen {
-    svg_logo: &'static str,
+    content: &'static str,
     style: Option<&'static str>,
-    //duration: u64,
+    loader: Option<&'static str>,
 }
 
 impl SplashScreen {
@@ -35,8 +35,8 @@ impl SplashScreen {
         SplashScreen::default()
     }
 
-    pub fn set_logo(mut self, logo: &'static str) -> Self {
-        self.svg_logo = logo;
+    pub fn set_content(mut self, content: &'static str) -> Self {
+        self.content = content;
 
         self
     }
@@ -47,8 +47,8 @@ impl SplashScreen {
         self
     }
 
-    pub fn svg_logo(&self) -> &str {
-        self.svg_logo
+    pub fn content(&self) -> &str {
+        self.content
     }
 
     pub fn style(&self) -> Option<&str> {
@@ -60,22 +60,95 @@ impl UiPaint for SplashScreen {
     fn to_html(&self) -> Cow<str> {
         let splash_open = Cow::Borrowed(r#"<div id="splashscreen""#);
         let close_div = "</div>";
-        let logo_parent = r#"<div style="width: 50%;">"#;
+        let logo_parent = r#"<div style="width: 40%;">"#;
         let style = if let Some(style) = self.style {
             style
         } else {
             DEFAULT_SPLASH_STYLE
         };
 
-        splash_open + style + ">" + logo_parent + self.svg_logo + close_div + close_div
+        splash_open + style + ">" + logo_parent + self.content + close_div + close_div
     }
 }
 
 impl Default for SplashScreen {
     fn default() -> Self {
         SplashScreen {
-            svg_logo: PUPPETEER_LOGO,
+            content: PUPPETEER_LOGO,
             style: Some(DEFAULT_SPLASH_STYLE),
+            loader: Some(PUPPETEER_LOADER),
         }
     }
 }
+
+pub const PUPPETEER_LOADER: &str = r#"
+<div class="lds-ellipsis">
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+</div>
+"#;
+
+pub const SPLASH_ANIMATION_CSS: &str = r#"
+#splashscreen {
+    display: flex;
+    flex-direction: column;
+}
+.lds-ellipsis {
+    display: inline-block;
+    position: relative;
+    width: 80px;
+    height: 80px;
+  }
+  .lds-ellipsis div {
+    position: absolute;
+    top: 33px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #fff;
+    animation-timing-function: cubic-bezier(0, 1, 1, 0);
+  }
+  .lds-ellipsis div:nth-child(1) {
+    left: 8px;
+    animation: lds-ellipsis1 0.6s infinite;
+  }
+  .lds-ellipsis div:nth-child(2) {
+    left: 8px;
+    animation: lds-ellipsis2 0.6s infinite;
+  }
+  .lds-ellipsis div:nth-child(3) {
+    left: 32px;
+    animation: lds-ellipsis2 0.6s infinite;
+  }
+  .lds-ellipsis div:nth-child(4) {
+    left: 56px;
+    animation: lds-ellipsis3 0.6s infinite;
+  }
+  @keyframes lds-ellipsis1 {
+    0% {
+      transform: scale(0);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes lds-ellipsis3 {
+    0% {
+      transform: scale(1);
+    }
+    100% {
+      transform: scale(0);
+    }
+  }
+  @keyframes lds-ellipsis2 {
+    0% {
+      transform: translate(0, 0);
+    }
+    100% {
+      transform: translate(24px, 0);
+    }
+  }
+  
+"#;

@@ -1,4 +1,7 @@
-use crate::{PuppeteerResult, Shell, SplashScreen, TitleBar, TitleBarType, UiPaint};
+use crate::{
+    PuppeteerResult, Shell, SplashScreen, TitleBar, TitleBarType, UiPaint,
+    PUPPETEER_INITIALIZED_APP,
+};
 use std::collections::HashMap;
 use wry::{
     application::{
@@ -20,7 +23,7 @@ pub struct Puppeteer<'p> {
     proxy: EventLoopProxy<UiEvent>,
     window: Window,
     title_bar: TitleBar<'p>,
-    shell: Shell<'p>,
+    pub shell: Shell<'p>,
     active: UiPaintBoxed,
     events: EventsMap,
 }
@@ -116,8 +119,11 @@ impl<'p> Puppeteer<'p> {
             .build()?;
 
         smol::spawn(async move {
-            init_func();
-            proxy.send_event(seahash::hash(b"initializedApp")).unwrap();
+            if init_func() {
+                proxy
+                    .send_event(seahash::hash(PUPPETEER_INITIALIZED_APP.as_bytes()))
+                    .unwrap();
+            }
         })
         .detach();
 
@@ -136,7 +142,7 @@ impl<'p> Puppeteer<'p> {
                     *control_flow = ControlFlow::Exit
                 }
                 Event::UserEvent(ui_event) => {
-                    if ui_event == seahash::hash(b"initializedApp") {
+                    if ui_event == seahash::hash(PUPPETEER_INITIALIZED_APP.as_bytes()) {
 
                         webview
                             .evaluate_script(
@@ -144,6 +150,7 @@ impl<'p> Puppeteer<'p> {
                             )
                             .unwrap();
                     }
+
                 }
                 _ => (),
             }

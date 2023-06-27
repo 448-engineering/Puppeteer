@@ -16,13 +16,19 @@ impl<'p> Container<'p> {
         Container::default()
     }
 
-    pub fn add_class(&mut self, class: &'p str) -> &mut Self {
+    pub fn add_class(mut self, class: &'p str) -> Self {
         self.class.push(class);
 
         self
     }
 
-    pub fn add_classes(&mut self, classes: &[&'p str]) -> &mut Self {
+    pub fn add_class_borrowed(&mut self, class: &'p str) -> &mut Self {
+        self.class.push(class);
+
+        self
+    }
+
+    pub fn add_classes(mut self, classes: &[&'p str]) -> Self {
         classes.iter().for_each(|class| {
             self.class.push(class);
         });
@@ -30,20 +36,60 @@ impl<'p> Container<'p> {
         self
     }
 
-    pub fn add_id(&mut self, id: &'p str) -> &mut Self {
+    pub fn add_classes_borrowed(&mut self, classes: &[&'p str]) -> &mut Self {
+        classes.iter().for_each(|class| {
+            self.class.push(class);
+        });
+
+        self
+    }
+
+    pub fn add_id(mut self, id: &'p str) -> Self {
         self.id = Some(id);
 
         self
     }
 
-    pub fn add_style(&mut self, style: Styling<'p>) -> &mut Self {
+    pub fn add_id_borrowed(&mut self, id: &'p str) -> &mut Self {
+        self.id = Some(id);
+
+        self
+    }
+
+    pub fn add_style(mut self, style: Styling<'p>) -> Self {
         self.style = Some(style);
 
         self
     }
 
-    pub fn add_child(&mut self, child: impl UiPaint + 'static) -> &mut Self {
+    pub fn add_style_borrowed(&mut self, style: Styling<'p>) -> &mut Self {
+        self.style = Some(style);
+
+        self
+    }
+
+    pub fn add_child_borrowed(&mut self, child: impl UiPaint + 'static) -> &mut Self {
         self.children.push(Box::new(child));
+
+        self
+    }
+
+    pub fn add_child(mut self, child: impl UiPaint + 'static) -> Self {
+        self.children.push(Box::new(child));
+
+        self
+    }
+
+    pub fn add_children(&mut self, children: Vec<impl UiPaint + 'static>) -> &mut Self {
+        children.into_iter().for_each(|child| {
+            self.children.push(Box::new(child));
+        });
+
+        self
+    }
+
+    pub fn replace_children(&mut self, children: Vec<Box<dyn UiPaint>>) -> &mut Self {
+        self.children = children;
 
         self
     }

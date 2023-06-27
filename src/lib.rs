@@ -127,17 +127,15 @@ mod sanity_tests {
 
     #[test]
     fn container() {
-        let mut container = Container::new();
-        container
+        let h1 = Heading::new("This is my first heading");
+
+        let container = Container::new()
             .add_class("foo_class_1")
             .add_id("foo_id")
             .add_class("foo_class_2")
             .add_class("foo_class_3")
-            .add_classes(&["foo_class_4", "foo_class_5"]);
-
-        let h1 = Heading::new("This is my first heading");
-
-        container.add_child(h1);
+            .add_classes(&["foo_class_4", "foo_class_5"])
+            .add_child(h1);
 
         assert_eq!("<div id=\"foo_id\" class=\" foo_class_1 foo_class_2 foo_class_3 foo_class_4 foo_class_5 \"><h1>This is my first heading</h1></div>", &container.to_html());
     }

@@ -1,11 +1,13 @@
-use crate::{SplashScreen, UiPaint};
-use std::borrow::{Borrow, Cow};
+use crate::{SplashScreen, UiPaint, PUPPETEER_CSS_RESET_STYLES};
+use std::{borrow::Cow, collections::HashMap};
+pub type Style<'p> = (&'p str, Cow<'p, str>);
+pub type StylesMap<'p> = HashMap<u64, Style<'p>>; //(Style name, style)
 
 #[derive(Debug)]
 pub struct Shell<'p> {
     title: &'p str,
     content: Box<dyn UiPaint>,
-    style: Cow<'p, str>, // The styling for the shell for example CSS reset styles.
+    styles: StylesMap<'p>,
 }
 
 impl<'p> Shell<'p> {
@@ -13,20 +15,23 @@ impl<'p> Shell<'p> {
         Shell::default()
     }
 
-    pub fn set_title(mut self, title: &'p str) -> Self {
+    pub fn set_title(&mut self, title: &'p str) -> &mut Self {
         self.title = title;
 
         self
     }
 
-    pub fn set_content(mut self, content: Box<dyn UiPaint>) -> Self {
+    pub fn set_content(&mut self, content: Box<dyn UiPaint>) -> &mut Self {
         self.content = content;
 
         self
     }
 
-    pub fn set_style(mut self, style: &'p str) -> Self {
-        self.style = style.into();
+    pub fn add_style(&mut self, style_name: &'p str, style: &'p str) -> &mut Self {
+        self.styles.insert(
+            seahash::hash(style_name.as_bytes()),
+            (style_name, style.into()),
+        );
 
         self
     }
@@ -39,8 +44,26 @@ impl<'p> Shell<'p> {
         &self.content
     }
 
-    pub fn style(&self) -> &Cow<'p, str> {
-        &self.style
+    pub fn get_style(&self, style_name: &'p str) -> Option<&Style<'p>> {
+        self.styles.get(&seahash::hash(style_name.as_bytes()))
+    }
+
+    pub fn remove_style(&mut self, style_name: &'p str) -> Option<Style<'p>> {
+        self.styles.remove(&seahash::hash(style_name.as_bytes()))
+    }
+
+    pub fn list_style(&self) -> &StylesMap {
+        &self.styles
+    }
+
+    fn build_styles(&self) -> Cow<'p, str> {
+        let inner_styles = self
+            .styles
+            .values()
+            .map(|value| value.1.to_string() + " ")
+            .collect::<String>();
+
+        Cow::Borrowed("<style>") + Cow::Owned(inner_styles) + "\n</style>"
     }
 }
 
@@ -53,23 +76,25 @@ impl<'p> UiPaint for Shell<'p> {
             + "<title>"
             + self.title
             + "</title>"
-            + "<style>\n"
-            + self.style.borrow()
-            + "\n</style>"
+            + self.build_styles()
             + "</head>"
-            + "<body"
             + self.content.to_html()
-            + "</body>"
             + "</html>"
     }
 }
 
 impl<'p> Default for Shell<'p> {
     fn default() -> Self {
+        let mut styles = StylesMap::default();
+        styles.insert(
+            seahash::hash(PUPPETEER_CSS_RESET_STYLES.as_bytes()),
+            (PUPPETEER_CSS_RESET_STYLES, CSS_RESET_STYLE.into()),
+        );
+
         Shell {
             title: "Puppeteer App",
             content: Box::new(SplashScreen::default()),
-            style: CSS_RESET_STYLE.into(),
+            styles,
         }
     }
 }
