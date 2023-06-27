@@ -5,9 +5,11 @@ use crate::{
 use std::collections::HashMap;
 use wry::{
     application::{
+        dpi::{PhysicalPosition, PhysicalSize, Position, Size},
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop, EventLoopProxy},
-        window::Window,
+        monitor::MonitorHandle,
+        window::{self, Window},
     },
     webview::WebViewBuilder,
 };
@@ -26,6 +28,7 @@ pub struct Puppeteer<'p> {
     pub shell: Shell<'p>,
     active: UiPaintBoxed,
     events: EventsMap,
+    primary_monitor: Option<MonitorHandle>,
 }
 
 impl<'p> Puppeteer<'p> {
@@ -34,6 +37,7 @@ impl<'p> Puppeteer<'p> {
         let event_loop = EventLoop::<UiEvent>::with_user_event();
         let proxy = event_loop.create_proxy();
         let window = Window::new(&event_loop).unwrap();
+        let primary_monitor = window.primary_monitor();
 
         let title_bar = TitleBar::default().set_text_content(app_name);
 
@@ -46,6 +50,7 @@ impl<'p> Puppeteer<'p> {
             shell: Shell::default(),
             active: Box::new(splash_screen),
             events: HashMap::default(),
+            primary_monitor,
         })
     }
 
@@ -118,6 +123,8 @@ impl<'p> Puppeteer<'p> {
             .with_ipc_handler(handler)
             .build()?;
 
+        let primary_monitor = self.primary_monitor;
+
         smol::spawn(async move {
             if init_func() {
                 proxy
@@ -143,18 +150,57 @@ impl<'p> Puppeteer<'p> {
                 }
                 Event::UserEvent(ui_event) => {
                     if ui_event == seahash::hash(PUPPETEER_INITIALIZED_APP.as_bytes()) {
+                        let inner_size = webview.inner_size();
+                        let window = webview.window();
+
+                        let size_params =
+                            Puppeteer::window_position_calc(primary_monitor.clone(), inner_size);
+
+                        Puppeteer::set_outer_position(size_params.0, window);
+                        Puppeteer::set_inner_size(size_params.1, window);
 
                         webview
-                            .evaluate_script(
-                                r#"document.body.innerHTML = "<html><body>AFTER SPLASH</body></html>""#,
-                            )
-                            .unwrap();
+                        .evaluate_script(
+                            r#"document.body.innerHTML = "<html><body>AFTER SPLASH</body></html>""#,
+                        )
+                        .unwrap();
                     }
-
                 }
                 _ => (),
             }
         });
+    }
+
+    fn window_position_calc(
+        primary_monitor: Option<MonitorHandle>,
+        inner_size: PhysicalSize<u32>,
+    ) -> (PhysicalPosition<i32>, PhysicalSize<u32>) {
+        dbg!(&primary_monitor); //TODO Log this
+
+        let screen_size = if let Some(some_monitor) = primary_monitor {
+            PhysicalSize {
+                width: (some_monitor.size().width as f32 * 0.9) as u32,
+                height: (some_monitor.size().height as f32 * 0.9) as u32,
+            }
+        } else {
+            PhysicalSize {
+                width: (1270f32 * 0.95) as u32,
+                height: (720f32 * 0.95) as u32,
+            }
+        };
+
+        let x = (screen_size.width as i32 - inner_size.width as i32) / 2;
+        let y = (screen_size.height as i32 - inner_size.height as i32) / 2;
+
+        (PhysicalPosition { x, y }, screen_size)
+    }
+
+    fn set_outer_position(outer_size: PhysicalPosition<i32>, window: &Window) {
+        window.set_outer_position(outer_size);
+    }
+
+    fn set_inner_size(inner_size: PhysicalSize<u32>, window: &Window) {
+        window.set_inner_size(inner_size);
     }
 
     fn handler(proxy: EventLoopProxy<UiEvent>) -> impl Fn(&Window, String) {

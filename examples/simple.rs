@@ -12,9 +12,9 @@ fn main() {
 pub fn init() -> bool {
     println!("RUNNING INIT");
 
-    std::thread::sleep(std::time::Duration::from_secs(4));
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
-    false
+    true
 }
 
 pub const PUPPETEER_ANIMATION: &str = r#"
