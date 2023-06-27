@@ -26,7 +26,7 @@ const DEFAULT_SPLASH_STYLE: &str = r#"
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SplashScreen {
     content: &'static str,
-    style: Option<&'static str>,
+    style: &'static str,
     loader: Option<&'static str>,
 }
 
@@ -42,7 +42,7 @@ impl SplashScreen {
     }
 
     pub fn set_style(mut self, style: &'static str) -> Self {
-        self.style = Some(style);
+        self.style = style;
 
         self
     }
@@ -51,7 +51,7 @@ impl SplashScreen {
         self.content
     }
 
-    pub fn style(&self) -> Option<&str> {
+    pub fn style(&self) -> &str {
         self.style
     }
 }
@@ -61,13 +61,8 @@ impl UiPaint for SplashScreen {
         let splash_open = Cow::Borrowed(r#"<div id="splashscreen""#);
         let close_div = "</div>";
         let logo_parent = r#"<div style="width: 40%;">"#;
-        let style = if let Some(style) = self.style {
-            style
-        } else {
-            DEFAULT_SPLASH_STYLE
-        };
 
-        splash_open + style + ">" + logo_parent + self.content + close_div + close_div
+        splash_open + self.style + ">" + logo_parent + self.content + close_div + close_div
     }
 }
 
@@ -75,8 +70,8 @@ impl Default for SplashScreen {
     fn default() -> Self {
         SplashScreen {
             content: PUPPETEER_LOGO,
-            style: Some(DEFAULT_SPLASH_STYLE),
-            loader: Some(PUPPETEER_LOADER),
+            style: DEFAULT_SPLASH_STYLE,
+            loader: None,
         }
     }
 }

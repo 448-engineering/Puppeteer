@@ -1,17 +1,17 @@
 use crate::{
-    PuppeteerResult, Shell, SplashScreen, TitleBar, TitleBarType, UiPaint,
+    PuppeteerResult, Shell, SplashScreen, Theme, TitleBar, TitleBarType, UiPaint,
     PUPPETEER_INITIALIZED_APP,
 };
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 use wry::{
     application::{
-        dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+        dpi::{PhysicalPosition, PhysicalSize},
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop, EventLoopProxy},
         monitor::MonitorHandle,
-        window::{self, Window},
+        window::Window,
     },
-    webview::WebViewBuilder,
+    webview::{WebView, WebViewBuilder},
 };
 
 pub type UiEvent = u64;
@@ -19,19 +19,19 @@ pub type UiPaintBoxed = Box<(dyn UiPaint + 'static)>;
 pub type EventsMap = HashMap<u64, (&'static str, fn() -> UiPaintBoxed)>;
 
 #[derive(Debug)]
-pub struct Puppeteer<'p> {
+pub struct Puppeteer {
     app_name: &'static str,
     event_loop: EventLoop<UiEvent>,
     proxy: EventLoopProxy<UiEvent>,
     window: Window,
-    title_bar: TitleBar<'p>,
-    pub shell: Shell<'p>,
-    active: UiPaintBoxed,
+    title_bar: TitleBar,
+    splash_screen: SplashScreen,
+    shell: Shell,
     events: EventsMap,
     primary_monitor: Option<MonitorHandle>,
 }
 
-impl<'p> Puppeteer<'p> {
+impl Puppeteer {
     pub fn new(app_name: &'static str) -> PuppeteerResult<Self> {
         let splash_screen = SplashScreen::default();
         let event_loop = EventLoop::<UiEvent>::with_user_event();
@@ -48,19 +48,31 @@ impl<'p> Puppeteer<'p> {
             window,
             title_bar,
             shell: Shell::default(),
-            active: Box::new(splash_screen),
+            splash_screen,
             events: HashMap::default(),
             primary_monitor,
         })
     }
 
     pub fn set_splash(&mut self, splash_screen: SplashScreen) -> &mut Self {
-        self.active = Box::new(splash_screen);
+        self.splash_screen = splash_screen;
 
         self
     }
 
-    pub fn set_title_bar(mut self, title_bar: TitleBar<'p>) -> Self {
+    pub fn set_shell(&mut self, shell: Shell) -> &mut Self {
+        self.shell = shell;
+
+        self
+    }
+
+    pub fn set_default_theme(&mut self, theme: Theme) -> &mut Self {
+        self.shell.set_theme(theme);
+
+        self
+    }
+
+    pub fn set_title_bar(mut self, title_bar: TitleBar) -> Self {
         self.title_bar = title_bar;
 
         self
@@ -114,14 +126,19 @@ impl<'p> Puppeteer<'p> {
     pub fn run(mut self, init_func: fn() -> bool) -> PuppeteerResult<()> {
         self.set_window();
 
+        let theme = self.window.theme();
+        let theme: Theme = theme.into();
+        self.set_default_theme(theme);
+
         let proxy = self.proxy.clone();
 
-        let shell = self.shell.set_content(self.active);
         let handler = Puppeteer::handler(self.proxy);
-        let webview = WebViewBuilder::new(self.window)?
-            .with_html(shell.to_html())?
-            .with_ipc_handler(handler)
-            .build()?;
+        let mut webview = Some(
+            WebViewBuilder::new(self.window)?
+                .with_html(self.shell.to_html())?
+                .with_ipc_handler(handler)
+                .build()?,
+        );
 
         let primary_monitor = self.primary_monitor;
 
@@ -139,19 +156,21 @@ impl<'p> Puppeteer<'p> {
 
             match event {
                 Event::NewEvents(StartCause::Init) => {
-                    //println!("Puppeteer Application Started"); //TODO Use logging to give more useful info about the program and window like rocket does
+                    Puppeteer::update_webview(&mut webview, &self.splash_screen.to_html());
+
+                    println!("Puppeteer Application Started"); //TODO Use logging to give more useful info about the program and window like rocket does
                 }
                 Event::WindowEvent {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => {
-                    //let _ = webview.take();
+                    let _ = webview.take();
                     *control_flow = ControlFlow::Exit
                 }
                 Event::UserEvent(ui_event) => {
                     if ui_event == seahash::hash(PUPPETEER_INITIALIZED_APP.as_bytes()) {
-                        let inner_size = webview.inner_size();
-                        let window = webview.window();
+                        let inner_size = webview.as_ref().unwrap().inner_size();
+                        let window = webview.as_ref().unwrap().window();
 
                         let size_params =
                             Puppeteer::window_position_calc(primary_monitor.clone(), inner_size);
@@ -159,16 +178,32 @@ impl<'p> Puppeteer<'p> {
                         Puppeteer::set_outer_position(size_params.0, window);
                         Puppeteer::set_inner_size(size_params.1, window);
 
-                        webview
-                        .evaluate_script(
-                            r#"document.body.innerHTML = "<html><body>AFTER SPLASH</body></html>""#,
-                        )
-                        .unwrap();
+                        Puppeteer::update_webview(&mut webview, &self.shell.to_html());
+
+                        let html = "<div>AFTER SPLASH</div>";
+
+                        Puppeteer::update_app(&mut webview, html);
+                    }
+
+                    if ui_event == seahash::hash(b"close_window") {
+                        let _ = webview.take();
+                        *control_flow = ControlFlow::Exit
                     }
                 }
                 _ => (),
             }
         });
+    }
+
+    fn update_webview(webview: &mut Option<WebView>, data: &str) {
+        let html = Cow::Borrowed(r#"document.body.innerHTML=`"#) + data + "`;";
+        webview.as_ref().unwrap().evaluate_script(&html).unwrap();
+    }
+
+    fn update_app(webview: &mut Option<WebView>, data: &str) {
+        let html =
+            Cow::Borrowed(r#"document.getElementById("puppeteer_app").innerHTML=`"#) + data + "`;";
+        webview.as_ref().unwrap().evaluate_script(&html).unwrap();
     }
 
     fn window_position_calc(

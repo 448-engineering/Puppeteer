@@ -1,3 +1,4 @@
+use crate::UiPaint;
 use std::borrow::Cow;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
@@ -7,46 +8,46 @@ pub enum TitleBarType {
     Puppeteer,
     None,
 }
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct TitleBar<'p> {
-    text_content: Cow<'p, str>,
-    minimize: Cow<'p, str>,
-    maximize: Cow<'p, str>,
-    close: Cow<'p, str>,
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub struct TitleBar {
+    text_content: &'static str,
+    minimize: &'static str,
+    maximize: &'static str,
+    close: &'static str,
     state: TitleBarType,
-    style: &'p str,
+    style: &'static str,
 }
 
-impl<'p> TitleBar<'p> {
+impl TitleBar {
     pub fn new() -> Self {
         TitleBar::default()
     }
 
-    pub fn set_text_content(mut self, text_content: &'p str) -> Self {
+    pub fn set_text_content(mut self, text_content: &'static str) -> Self {
         self.text_content = text_content.into();
 
         self
     }
 
-    pub fn set_minimize_icon(mut self, minimize_icon: &'p str) -> Self {
+    pub fn set_minimize_icon(mut self, minimize_icon: &'static str) -> Self {
         self.minimize = minimize_icon.into();
 
         self
     }
 
-    pub fn set_maximize_icon(mut self, maximize_icon: &'p str) -> Self {
+    pub fn set_maximize_icon(mut self, maximize_icon: &'static str) -> Self {
         self.maximize = maximize_icon.into();
 
         self
     }
 
-    pub fn set_close_icon(mut self, close_icon: &'p str) -> Self {
+    pub fn set_close_icon(mut self, close_icon: &'static str) -> Self {
         self.close = close_icon.into();
 
         self
     }
 
-    pub fn set_style(mut self, style: &'p str) -> Self {
+    pub fn set_style(mut self, style: &'static str) -> Self {
         self.style = style.into();
 
         self
@@ -64,16 +65,16 @@ impl<'p> TitleBar<'p> {
         self
     }
 
-    pub fn text_content(&self) -> &Cow<'_, str> {
-        &self.text_content
+    pub fn text_content(&self) -> &str {
+        self.text_content
     }
 
-    pub fn minimize(&self) -> &Cow<'_, str> {
-        &self.minimize
+    pub fn minimize(&self) -> &str {
+        self.minimize
     }
 
-    pub fn maximize(&self) -> &Cow<'_, str> {
-        &self.maximize
+    pub fn maximize(&self) -> &str {
+        self.maximize
     }
 
     pub fn title_bar_type(&self) -> TitleBarType {
@@ -83,8 +84,10 @@ impl<'p> TitleBar<'p> {
     pub fn style(&self) -> &str {
         self.style
     }
+}
 
-    pub fn build(self) -> Cow<'p, str> {
+impl UiPaint for TitleBar {
+    fn to_html(&self) -> Cow<str> {
         let title_bar_open = Cow::Borrowed("<div id = titlebar>");
         let div_close = "</div>";
         let drag_region = r#"<div class="drag-region">"#;
@@ -93,7 +96,7 @@ impl<'p> TitleBar<'p> {
         let maximize_button =
             r#"<div class="titlebar-button" onclick="window.ipc.postMessage('maximize')">"#;
         let close_button =
-            r#"<div class="titlebar-button" onclick="window.ipc.postMessage('close')">"#;
+            r#"<div class="titlebar-button" onclick="window.ipc.postMessage('close_window')">"#;
 
         title_bar_open
             + drag_region
@@ -112,7 +115,7 @@ impl<'p> TitleBar<'p> {
     }
 }
 
-impl<'p> Default for TitleBar<'p> {
+impl Default for TitleBar {
     fn default() -> Self {
         TitleBar {
             text_content: "Puppeteer App".into(),
@@ -120,7 +123,7 @@ impl<'p> Default for TitleBar<'p> {
             maximize: MAXIMIZE.into(),
             close: CLOSE.into(),
             state: TitleBarType::Puppeteer,
-            style: STYLE,
+            style: TITLE_BAR_STYLE,
         }
     }
 }
@@ -159,55 +162,43 @@ const CLOSE: &str = r#"
 </svg>
 "#;
 
-const STYLE: &str = r#"
-<style>
-        html {
-            font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-        }
+const TITLE_BAR_STYLE: &str = r#"
+main {
+    display: grid;
+    place-items: center;
+    height: calc(100vh - 30px);
+}
 
-        * {
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
+#titlebar {
+    height: 30px;
+    padding-left: 5px;
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: 1fr max-content max-content max-content;
+    align-items: center;
+    background: #1F1F1F;
+    color: white;
+    user-select: none;
+}
 
-        main {
-            display: grid;
-            place-items: center;
-            height: calc(100vh - 30px);
-        }
+#titlebar-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 30px;
+    height: 30px;
+}
 
-        .titlebar {
-            height: 30px;
-            padding-left: 5px;
-            display: grid;
-            grid-auto-flow: column;
-            grid-template-columns: 1fr max-content max-content max-content;
-            align-items: center;
-            background: #1F1F1F;
-            color: white;
-            user-select: none;
-        }
+#titlebar-button:hover {
+    color: #FFFFFF;
+    background: #3b3b3b;
+}
 
-        .titlebar-button {
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            width: 30px;
-            height: 30px;
-        }
+#titlebar-button#close:hover {
+    background: #da3d3d;
+}
 
-        .titlebar-button:hover {
-            color: #FFFFFF;
-            background: #3b3b3b;
-        }
-
-        .titlebar-button#close:hover {
-            background: #da3d3d;
-        }
-
-        .titlebar-button img {
-            filter: invert(100%);
-        }
-    </style>
+#titlebar-button img {
+    filter: invert(100%);
+}
 "#;

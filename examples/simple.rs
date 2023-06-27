@@ -6,6 +6,7 @@ fn main() {
     // .add_style("splash_animation", SPLASH_ANIMATION_CSS);
     //.set_title_bar_type(puppeteer::TitleBarType::Native)
 
+    //app.set_title_bar_type(puppeteer::TitleBarType::Native)
     app.run(init).unwrap();
 }
 

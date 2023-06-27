@@ -1,37 +1,57 @@
-use crate::{SplashScreen, UiPaint, PUPPETEER_CSS_RESET_STYLES};
+use crate::{TitleBar, UiPaint};
 use std::{borrow::Cow, collections::HashMap};
+use wry::application::window::Theme as WryTheme;
+
 pub type Style<'p> = (&'p str, Cow<'p, str>);
 pub type StylesMap<'p> = HashMap<u64, Style<'p>>; //(Style name, style)
 
-#[derive(Debug)]
-pub struct Shell<'p> {
-    title: &'p str,
-    content: Box<dyn UiPaint>,
-    styles: StylesMap<'p>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Shell {
+    title: &'static str,
+    style: &'static str,
+    theme: Theme,
+    theme_light: &'static str, //FIXME switch to `HexColor`
+    theme_dark: &'static str,  //FIXME switch to `HexColor`
+    title_bar: TitleBar,
 }
 
-impl<'p> Shell<'p> {
+impl Shell {
     pub fn new() -> Self {
         Shell::default()
     }
 
-    pub fn set_title(&mut self, title: &'p str) -> &mut Self {
+    pub fn set_title(mut self, title: &'static str) -> Self {
         self.title = title;
 
         self
     }
 
-    pub fn set_content(&mut self, content: Box<dyn UiPaint>) -> &mut Self {
-        self.content = content;
+    pub fn set_style(mut self, style: &'static str) -> Self {
+        self.style = style;
 
         self
     }
 
-    pub fn add_style(&mut self, style_name: &'p str, style: &'p str) -> &mut Self {
-        self.styles.insert(
-            seahash::hash(style_name.as_bytes()),
-            (style_name, style.into()),
-        );
+    pub fn set_title_bar(mut self, title_bar: TitleBar) -> Self {
+        self.title_bar = title_bar;
+
+        self
+    }
+
+    pub fn set_theme(mut self, theme: Theme) -> Self {
+        self.theme = theme;
+
+        self
+    }
+
+    pub fn set_theme_light(mut self, color: &'static str) -> Self {
+        self.theme_light = color;
+
+        self
+    }
+
+    pub fn set_theme_dark(mut self, color: &'static str) -> Self {
+        self.theme_dark = color;
 
         self
     }
@@ -40,35 +60,45 @@ impl<'p> Shell<'p> {
         self.title
     }
 
-    pub fn content(&self) -> &Box<dyn UiPaint> {
-        &self.content
+    pub fn style(&self) -> &'static str {
+        self.style
     }
 
-    pub fn get_style(&self, style_name: &'p str) -> Option<&Style<'p>> {
-        self.styles.get(&seahash::hash(style_name.as_bytes()))
+    pub fn title_bar(&self) -> TitleBar {
+        self.title_bar
     }
 
-    pub fn remove_style(&mut self, style_name: &'p str) -> Option<Style<'p>> {
-        self.styles.remove(&seahash::hash(style_name.as_bytes()))
+    pub fn theme(&self) -> Theme {
+        self.theme
     }
 
-    pub fn list_style(&self) -> &StylesMap {
-        &self.styles
+    pub fn theme_light(&self) -> &'static str {
+        self.theme_light
     }
 
-    fn build_styles(&self) -> Cow<'p, str> {
-        let inner_styles = self
-            .styles
-            .values()
-            .map(|value| value.1.to_string() + " ")
-            .collect::<String>();
-
-        Cow::Borrowed("<style>") + Cow::Owned(inner_styles) + "\n</style>"
+    pub fn theme_dark(&self) -> &'static str {
+        self.theme_dark
     }
 }
 
-impl<'p> UiPaint for Shell<'p> {
+impl UiPaint for Shell {
     fn to_html(&self) -> Cow<str> {
+        let background_color = if self.theme == Theme::Dark {
+            self.theme_dark
+        } else if self.theme == Theme::Light {
+            self.theme_light
+        } else {
+            self.theme_dark
+        };
+
+        let text_color = if self.theme == Theme::Dark {
+            self.theme_light
+        } else if self.theme == Theme::Light {
+            self.theme_dark
+        } else {
+            self.theme_light
+        };
+
         Cow::Borrowed("<!DOCTYPE html>")
             + "<head>"
             + r#"<meta charset="UTF-8">"#
@@ -76,28 +106,74 @@ impl<'p> UiPaint for Shell<'p> {
             + "<title>"
             + self.title
             + "</title>"
-            + self.build_styles()
+            + "<style>"
+            + self.style
+            + self.title_bar.style()
+            + "body { "
+            + "background-color: "
+            + background_color
+            + ";"
+            + "color: "
+            + text_color
+            + ";"
+            + " }"
+            + "</style>"
             + "</head>"
-            + self.content.to_html()
+            + "<body>"
+            + self.title_bar.to_html()
+            + r#"<div id="puppeteer_app"></div>"#
+            + TITLE_BAR_SCRIPT
+            + "</body>"
             + "</html>"
     }
 }
 
-impl<'p> Default for Shell<'p> {
+impl Default for Shell {
     fn default() -> Self {
-        let mut styles = StylesMap::default();
-        styles.insert(
-            seahash::hash(PUPPETEER_CSS_RESET_STYLES.as_bytes()),
-            (PUPPETEER_CSS_RESET_STYLES, CSS_RESET_STYLE.into()),
-        );
-
         Shell {
             title: "Puppeteer App",
-            content: Box::new(SplashScreen::default()),
-            styles,
+            style: CSS_RESET_STYLE,
+            theme: Theme::System,
+            theme_dark: "#1b1b1b",
+            theme_light: "#fafafa",
+            title_bar: TitleBar::default(),
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Theme {
+    Dark,
+    Light,
+    System,
+}
+
+impl From<WryTheme> for Theme {
+    fn from(value: WryTheme) -> Self {
+        match value {
+            WryTheme::Dark => Theme::Dark,
+            WryTheme::Light => Theme::Light,
+            _ => Theme::System,
+        }
+    }
+}
+
+pub const TITLE_BAR_SCRIPT: &str = r#"
+<script>
+document.addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains('drag-region') && e.buttons === 1) {
+        e.detail === 2
+            ? window.ipc.postMessage('maximize')
+            : window.ipc.postMessage('drag_window');
+    }
+})
+document.addEventListener('touchstart', (e) => {
+    if (e.target.classList.contains('drag-region')) {
+        window.ipc.postMessage('drag_window');
+    }
+})
+</script>
+"#;
 
 pub const CSS_RESET_STYLE: &str = r#"
 /* http://meyerweb.com/eric/tools/css/reset/ 
