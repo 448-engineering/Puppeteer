@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use crate::HtmlStaticContent;
+
 pub trait UiPaint {
     fn to_native(&self) -> () {
         ()
@@ -21,5 +23,11 @@ pub trait StyleDeclaration {
 
     fn to_native(&self) -> () {
         ()
+    }
+}
+
+impl From<&'static str> for Box<dyn UiPaint> {
+    fn from(value: &'static str) -> Self {
+        Box::new(HtmlStaticContent { content: value })
     }
 }

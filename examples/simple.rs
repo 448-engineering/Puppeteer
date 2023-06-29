@@ -1,12 +1,13 @@
-use puppeteer::Puppeteer;
+use puppeteer::{Puppeteer, UiPaint};
 
 fn main() {
-    let app = Puppeteer::new("Simple App").unwrap();
+    let mut app = Puppeteer::new("Simple App").unwrap();
 
     // .add_style("splash_animation", SPLASH_ANIMATION_CSS);
     //.set_title_bar_type(puppeteer::TitleBarType::Native)
 
     //app.set_title_bar_type(puppeteer::TitleBarType::Native)
+    app.with_root_page(root_page);
     app.run(init).unwrap();
 }
 
@@ -16,6 +17,10 @@ pub fn init() -> bool {
     std::thread::sleep(std::time::Duration::from_secs(2));
 
     true
+}
+
+pub fn root_page() -> Box<dyn UiPaint> {
+    "<div>AFTER SPLASH</div>".into()
 }
 
 pub const PUPPETEER_ANIMATION: &str = r#"

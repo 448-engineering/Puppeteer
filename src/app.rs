@@ -1,6 +1,6 @@
 use crate::{
-    PuppeteerResult, Shell, SplashScreen, Theme, TitleBar, TitleBarType, UiPaint,
-    PUPPETEER_INITIALIZED_APP,
+    root_ui_not_found, PuppeteerResult, Shell, SplashScreen, Theme, TitleBar, TitleBarType,
+    UiPaint, PUPPETEER_INITIALIZED_APP, PUPPETEER_ROOT_PAGE,
 };
 use std::{borrow::Cow, collections::HashMap};
 use wry::{
@@ -15,7 +15,7 @@ use wry::{
 };
 
 pub type UiEvent = u64;
-pub type UiPaintBoxed = Box<(dyn UiPaint + 'static)>;
+pub type UiPaintBoxed = Box<dyn UiPaint>;
 pub type EventsMap = HashMap<u64, (&'static str, fn() -> UiPaintBoxed)>;
 
 #[derive(Debug)]
@@ -123,6 +123,15 @@ impl Puppeteer {
         &self.events
     }
 
+    pub fn with_root_page(&mut self, page: fn() -> Box<(dyn UiPaint)>) -> &mut Self {
+        self.events.insert(
+            seahash::hash(PUPPETEER_ROOT_PAGE.as_bytes()),
+            (PUPPETEER_ROOT_PAGE, page),
+        );
+
+        self
+    }
+
     pub fn run(mut self, init_func: fn() -> bool) -> PuppeteerResult<()> {
         self.set_window();
 
@@ -174,15 +183,13 @@ impl Puppeteer {
 
                         let size_params =
                             Puppeteer::window_position_calc(primary_monitor.clone(), inner_size);
-
                         Puppeteer::set_outer_position(size_params.0, window);
                         Puppeteer::set_inner_size(size_params.1, window);
 
                         Puppeteer::update_webview(&mut webview, &self.shell.to_html());
 
-                        let html = "<div>AFTER SPLASH</div>";
-
-                        Puppeteer::update_app(&mut webview, html);
+                        let root_ui = load_root(&self.events);
+                        Puppeteer::update_app(&mut webview, &root_ui.to_html());
                     }
 
                     if ui_event == seahash::hash(b"close_window") {
@@ -247,5 +254,13 @@ impl Puppeteer {
                 proxy.send_event(seahash::hash(req.as_bytes())).unwrap(); //FIXME
             }
         }
+    }
+}
+
+fn load_root(events_map: &EventsMap) -> UiPaintBoxed {
+    if let Some(root_ui) = events_map.get(&seahash::hash(PUPPETEER_ROOT_PAGE.as_bytes())) {
+        root_ui.1()
+    } else {
+        root_ui_not_found()
     }
 }

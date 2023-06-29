@@ -6,6 +6,8 @@ pub const PUPPETEER_REMOVE_STYLE: &str = "PuppeteerRemoveStyle";
 
 pub const PUPPETEER_CSS_RESET_STYLES: &str = "PuppeteerCssResetStyles";
 
+pub const PUPPETEER_ROOT_PAGE: &str = "PuppeteerRootPage";
+
 pub const TITLE_BAR_SCRIPT: &str = r#"
 <script>
 document.addEventListener('mousedown', (e) => {
