@@ -1,4 +1,4 @@
-use crate::UiPaint;
+use crate::{UiPaint, CSS_RESET_STYLE};
 use std::borrow::Cow;
 
 const PUPPETEER_LOGO: &str = include_str!("./Puppeteer-Logo.svg");
@@ -58,11 +58,28 @@ impl SplashScreen {
 
 impl UiPaint for SplashScreen {
     fn to_html(&self) -> Cow<str> {
-        let splash_open = Cow::Borrowed(r#"<div id="splashscreen""#);
         let close_div = "</div>";
         let logo_parent = r#"<div style="width: 40%;">"#;
 
-        splash_open + self.style + ">" + logo_parent + self.content + close_div + close_div
+        Cow::Borrowed("<!DOCTYPE html>")
+            + "<head>"
+            + r#"<meta charset="UTF-8">"#
+            + r#"<meta name="viewport" content="width=device-width, initial-scale=1.0">"#
+            + "<style>"
+            + CSS_RESET_STYLE
+            + self.style
+            + "</style>"
+            + "</head>"
+            + "<body>"
+            + r#"<div id="splashscreen""#
+            + self.style
+            + ">"
+            + logo_parent
+            + self.content
+            + close_div
+            + close_div
+            + "</body>"
+            + "</html>"
     }
 }
 
@@ -86,6 +103,11 @@ pub const PUPPETEER_LOADER: &str = r#"
 "#;
 
 pub const SPLASH_ANIMATION_CSS: &str = r#"
+body {
+  background-color: #1b1b1b;
+  color: #fafafa;
+}
+
 #splashscreen {
     display: flex;
     flex-direction: column;

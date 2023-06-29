@@ -196,7 +196,7 @@ impl Puppeteer {
     }
 
     fn update_webview(webview: &mut Option<WebView>, data: &str) {
-        let html = Cow::Borrowed(r#"document.body.innerHTML=`"#) + data + "`;";
+        let html = Cow::Borrowed(r#"document.documentElement.innerHTML=`"#) + data + "`;";
         webview.as_ref().unwrap().evaluate_script(&html).unwrap();
     }
 
