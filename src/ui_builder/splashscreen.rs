@@ -23,7 +23,7 @@ const DEFAULT_SPLASH_STYLE: &str = r#"
     "
 "#;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct SplashScreen {
     content: &'static str,
     style: &'static str,

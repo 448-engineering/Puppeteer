@@ -1,4 +1,4 @@
-use puppeteer::{Puppeteer, UiPaint};
+use puppeteer::{ModifyView, Puppeteer};
 
 fn main() {
     let mut app = Puppeteer::new("Simple App").unwrap();
@@ -7,7 +7,15 @@ fn main() {
     //.set_title_bar_type(puppeteer::TitleBarType::Native)
 
     //app.set_title_bar_type(puppeteer::TitleBarType::Native)
+    //app.shell.set_theme(Theme::Light);
+
+    /*let shell = Shell::default()
+    .set_scripts(include_str!("./simple.html"))
+    .set_style(include_str!("./simple.css"));*/
+
+    //app.set_shell(shell);
     app.with_root_page(root_page);
+    app.register_event(("success_route", success));
     app.run(init).unwrap();
 }
 
@@ -19,8 +27,19 @@ pub fn init() -> bool {
     true
 }
 
-pub fn root_page() -> Box<dyn UiPaint> {
-    "<div>AFTER SPLASH</div>".into()
+pub fn root_page() -> ModifyView {
+    let data = r#"
+    <div>AFTER SPLASH</div>
+    <button onclick="window.ipc.postMessage('success_route')">ROUTE TO NEW PAGE</button>
+    "#;
+
+    ModifyView::replace_app(data.into())
+}
+
+pub fn success() -> ModifyView {
+    let data = "<div>SUCCESS ROUTING</div>";
+
+    ModifyView::replace_app(data.into())
 }
 
 pub const PUPPETEER_ANIMATION: &str = r#"

@@ -13,6 +13,7 @@ pub struct Shell {
     theme_light: &'static str, //FIXME switch to `HexColor`
     theme_dark: &'static str,  //FIXME switch to `HexColor`
     title_bar: TitleBar,
+    scripts: &'static str,
 }
 
 impl Shell {
@@ -28,6 +29,12 @@ impl Shell {
 
     pub fn set_style(mut self, style: &'static str) -> Self {
         self.style = style;
+
+        self
+    }
+
+    pub fn set_scripts(mut self, scripts: &'static str) -> Self {
+        self.scripts = scripts;
 
         self
     }
@@ -62,6 +69,10 @@ impl Shell {
 
     pub fn style(&self) -> &'static str {
         self.style
+    }
+
+    pub fn scripts(&self) -> &'static str {
+        self.scripts
     }
 
     pub fn title_bar(&self) -> TitleBar {
@@ -107,6 +118,7 @@ impl UiPaint for Shell {
             + self.title
             + "</title>"
             + "<style>"
+            + CSS_RESET_STYLE
             + self.style
             + self.title_bar.style()
             + "body { "
@@ -123,6 +135,7 @@ impl UiPaint for Shell {
             + self.title_bar.to_html()
             + r#"<div id="puppeteer_app"></div>"#
             + TITLE_BAR_SCRIPT
+            + self.scripts
             + "</body>"
             + "</html>"
     }
@@ -132,11 +145,12 @@ impl Default for Shell {
     fn default() -> Self {
         Shell {
             title: "Puppeteer App",
-            style: CSS_RESET_STYLE,
+            style: "",
             theme: Theme::System,
             theme_dark: "#1b1b1b",
             theme_light: "#fafafa",
             title_bar: TitleBar::default(),
+            scripts: "",
         }
     }
 }

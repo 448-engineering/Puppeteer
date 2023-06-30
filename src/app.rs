@@ -1,8 +1,8 @@
 use crate::{
-    root_ui_not_found, PuppeteerResult, Shell, SplashScreen, Theme, TitleBar, TitleBarType,
-    UiPaint, PUPPETEER_INITIALIZED_APP, PUPPETEER_ROOT_PAGE,
+    event_not_found, root_ui_not_found, ModifyView, PuppeteerResult, Shell, SplashScreen, Theme,
+    TitleBar, TitleBarType, UiPaint, PUPPETEER_INITIALIZED_APP, PUPPETEER_ROOT_PAGE,
 };
-use std::{borrow::Cow, collections::HashMap};
+use std::collections::HashMap;
 use wry::{
     application::{
         dpi::{PhysicalPosition, PhysicalSize},
@@ -16,7 +16,7 @@ use wry::{
 
 pub type UiEvent = u64;
 pub type UiPaintBoxed = Box<dyn UiPaint>;
-pub type EventsMap = HashMap<u64, (&'static str, fn() -> UiPaintBoxed)>;
+pub type EventsMap = HashMap<u64, (&'static str, fn() -> ModifyView)>;
 
 #[derive(Debug)]
 pub struct Puppeteer {
@@ -113,7 +113,7 @@ impl Puppeteer {
         &mut self.window
     }
 
-    pub fn register_event(&mut self, event: (&'static str, fn() -> UiPaintBoxed)) -> &mut Self {
+    pub fn register_event(&mut self, event: (&'static str, fn() -> ModifyView)) -> &mut Self {
         self.events.insert(seahash::hash(event.0.as_bytes()), event);
 
         self
@@ -123,7 +123,7 @@ impl Puppeteer {
         &self.events
     }
 
-    pub fn with_root_page(&mut self, page: fn() -> Box<(dyn UiPaint)>) -> &mut Self {
+    pub fn with_root_page(&mut self, page: fn() -> ModifyView) -> &mut Self {
         self.events.insert(
             seahash::hash(PUPPETEER_ROOT_PAGE.as_bytes()),
             (PUPPETEER_ROOT_PAGE, page),
@@ -165,7 +165,10 @@ impl Puppeteer {
 
             match event {
                 Event::NewEvents(StartCause::Init) => {
-                    Puppeteer::update_webview(&mut webview, &self.splash_screen.to_html());
+                    Puppeteer::view_ops(
+                        &mut webview,
+                        ModifyView::ReplaceView(Box::new(self.splash_screen.clone())),
+                    );
 
                     println!("Puppeteer Application Started"); //TODO Use logging to give more useful info about the program and window like rocket does
                 }
@@ -186,15 +189,22 @@ impl Puppeteer {
                         Puppeteer::set_outer_position(size_params.0, window);
                         Puppeteer::set_inner_size(size_params.1, window);
 
-                        Puppeteer::update_webview(&mut webview, &self.shell.to_html());
+                        Puppeteer::view_ops(
+                            &mut webview,
+                            ModifyView::ReplaceView(Box::new(self.shell.clone())),
+                        );
 
                         let root_ui = load_root(&self.events);
-                        Puppeteer::update_app(&mut webview, &root_ui.to_html());
-                    }
-
-                    if ui_event == seahash::hash(b"close_window") {
+                        Puppeteer::view_ops(&mut webview, root_ui);
+                    } else if ui_event == seahash::hash(b"close_window") {
                         let _ = webview.take();
                         *control_flow = ControlFlow::Exit
+                    } else if let Some(registered_event) = &self.events.get(&ui_event) {
+                        let outcome = registered_event.1();
+
+                        Puppeteer::view_ops(&mut webview, outcome);
+                    } else {
+                        Puppeteer::view_ops(&mut webview, event_not_found())
                     }
                 }
                 _ => (),
@@ -202,14 +212,9 @@ impl Puppeteer {
         });
     }
 
-    fn update_webview(webview: &mut Option<WebView>, data: &str) {
-        let html = Cow::Borrowed(r#"document.documentElement.innerHTML=`"#) + data + "`;";
-        webview.as_ref().unwrap().evaluate_script(&html).unwrap();
-    }
+    fn view_ops(webview: &mut Option<WebView>, data: ModifyView) {
+        let html = data.to_html();
 
-    fn update_app(webview: &mut Option<WebView>, data: &str) {
-        let html =
-            Cow::Borrowed(r#"document.getElementById("puppeteer_app").innerHTML=`"#) + data + "`;";
         webview.as_ref().unwrap().evaluate_script(&html).unwrap();
     }
 
@@ -226,8 +231,8 @@ impl Puppeteer {
             }
         } else {
             PhysicalSize {
-                width: (1270f32 * 0.95) as u32,
-                height: (720f32 * 0.95) as u32,
+                width: (1270f32 * 0.95) as u32, //FIXME Set window to maximized if outer position cannot be detected
+                height: (720f32 * 0.95) as u32, //FIXME Set window to maximized if outer position cannot be detected
             }
         };
 
@@ -257,7 +262,7 @@ impl Puppeteer {
     }
 }
 
-fn load_root(events_map: &EventsMap) -> UiPaintBoxed {
+fn load_root(events_map: &EventsMap) -> ModifyView {
     if let Some(root_ui) = events_map.get(&seahash::hash(PUPPETEER_ROOT_PAGE.as_bytes())) {
         root_ui.1()
     } else {

@@ -1,3 +1,5 @@
+use crate::{UiPaint, UiPaintBoxed};
+use std::borrow::Cow;
 use wry::application::{
     dpi::{LogicalPosition, LogicalSize, Position, Size},
     window::{Fullscreen, Window},
@@ -95,3 +97,62 @@ pub struct MenuCreator {} //TODO
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
 pub struct IconCreator {} //TODO
+
+#[derive(Debug)]
+pub enum ModifyView {
+    /// Replaces the node in the view.
+    /// For webview, it will replace everything in the webpage
+    ReplaceView(UiPaintBoxed),
+    /// Replaces node after the titlebar
+    ReplaceApp(UiPaintBoxed),
+    /// Replaces the node with the specified ID
+    ReplaceNodeWithId { id: String, content: UiPaintBoxed },
+    // Replaces the nodes with the specified class
+    // ReplaceNodesWithClass{ class: String, content: UiPaintBoxed} //TODO
+}
+
+impl ModifyView {
+    pub fn replace_view(data: UiPaintBoxed) -> ModifyView {
+        ModifyView::ReplaceView(data)
+    }
+
+    pub fn replace_app(data: UiPaintBoxed) -> ModifyView {
+        ModifyView::ReplaceApp(data)
+    }
+
+    pub fn replace_with_id(id: &str, data: UiPaintBoxed) -> ModifyView {
+        ModifyView::ReplaceNodeWithId {
+            id: id.to_owned(),
+            content: data,
+        }
+    }
+
+    /*pub fn replace_with_class(class: &str, data: UiPaintBoxed) -> ModifyView {
+        ModifyView::ReplaceNodesWithClass {
+            class: class.to_owned(),
+            content:data,
+        } //TODO
+    }*/
+}
+
+impl UiPaint for ModifyView {
+    fn to_html(&self) -> Cow<str> {
+        match self {
+            Self::ReplaceView(content) => {
+                Cow::Borrowed(r#"document.documentElement.innerHTML=`"#) + content.to_html() + "`;"
+            }
+            Self::ReplaceApp(content) => {
+                Cow::Borrowed(r#"document.getElementById("puppeteer_app").innerHTML=`"#)
+                    + content.to_html()
+                    + "`;"
+            }
+            Self::ReplaceNodeWithId { id, content } => {
+                Cow::Borrowed(r#"document.getElementById(""#)
+                    + id.as_str()
+                    + r#"").innerHTML=`"#
+                    + content.to_html()
+                    + "`;"
+            }
+        }
+    }
+}
