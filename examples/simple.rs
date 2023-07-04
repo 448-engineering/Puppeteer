@@ -15,7 +15,7 @@ fn main() {
 
     //app.set_shell(shell);
     app.with_root_page(root_page);
-    app.register_event(("success_route", success));
+    app.register_event("success_route", success);
     app.run(init).unwrap();
 }
 

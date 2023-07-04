@@ -8,6 +8,8 @@ pub const PUPPETEER_CSS_RESET_STYLES: &str = "PuppeteerCssResetStyles";
 
 pub const PUPPETEER_ROOT_PAGE: &str = "PuppeteerRootPage";
 
+pub const PUPPETEER_INIT_ERROR_PAGE: &str = "PuppeteerInitErrorPage";
+
 pub const TITLE_BAR_SCRIPT: &str = r#"
 <script>
 document.addEventListener('mousedown', (e) => {

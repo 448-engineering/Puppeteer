@@ -32,3 +32,9 @@ pub const EVENT_NOT_FOUND: &str = r#"
     <p>Register the event by calling the <b>register_event()</b> method on the variable you defined as <b>Puppeteer::new("App Name")</b></p>
 </div>
 "#;
+
+pub const INIT_ERROR_PAGE_NOT_FOUND: &str = r#"
+<div style="display: flex; justify-content: space-around; align-items: center; flex-direction: column; min-height: 50vh; ">
+    <h1>THERE WAS A PROBLEM INITIALIZING THE APPLICATION NOT REGISTERED</h1>
+</div>
+"#;
