@@ -1,6 +1,5 @@
-use std::borrow::Cow;
-
 use crate::HtmlStaticContent;
+use std::borrow::Cow;
 
 pub trait UiPaint {
     fn to_native(&self) -> () {

@@ -10,6 +10,10 @@ pub const PUPPETEER_ROOT_PAGE: &str = "PuppeteerRootPage";
 
 pub const PUPPETEER_INIT_ERROR_PAGE: &str = "PuppeteerInitErrorPage";
 
+pub const COMMAND_UI_UPDATE: &str = "PuppUi»";
+
+pub const COMMAND_ROOT_UI: &str = "RootUi»";
+
 pub const TITLE_BAR_SCRIPT: &str = r#"
 <script>
 document.addEventListener('mousedown', (e) => {

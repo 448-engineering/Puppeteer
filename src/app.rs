@@ -1,9 +1,15 @@
 use crate::{
-    event_not_found, root_ui_not_found, ModifyView, PuppeteerResult, Shell, SplashScreen, Theme,
-    TitleBar, TitleBarType, UiPaint, INIT_ERROR_PAGE_NOT_FOUND, PUPPETEER_INITIALIZED_APP,
-    PUPPETEER_INIT_ERROR_PAGE, PUPPETEER_ROOT_PAGE,
+    root_ui_not_found, EventHandler, ModifyView, Page, PuppeteerResult, Shell, SplashScreen, Theme,
+    TitleBar, TitleBarType, UiPaint, COMMAND_ROOT_UI, COMMAND_UI_UPDATE, INIT_ERROR_PAGE_NOT_FOUND,
+    PUPPETEER_INITIALIZED_APP, PUPPETEER_INIT_ERROR_PAGE, PUPPETEER_ROOT_PAGE,
 };
-use std::collections::HashMap;
+use async_dup::Arc;
+use async_lock::RwLock;
+use smol::{
+    channel::{bounded, Receiver, Sender},
+    future::zip,
+};
+use std::{borrow::Cow, collections::HashMap, future::Future};
 use wry::{
     application::{
         dpi::{PhysicalPosition, PhysicalSize},
@@ -15,9 +21,11 @@ use wry::{
     webview::{WebView, WebViewBuilder},
 };
 
-pub type UiEvent = u64;
+pub type PageOp = String;
+pub type EventsAsyncFunction = dyn Future<Output = String> + 'static;
 pub type UiPaintBoxed = Box<dyn UiPaint>;
-pub type EventsMap = HashMap<u64, (&'static str, fn() -> ModifyView)>;
+pub type EventsMap = HashMap<u64, (&'static str, fn(String) -> EventsAsyncFunction)>;
+pub type PagesMap = HashMap<u64, (&'static str, ModifyView)>;
 
 /// The entrypoint for a Puppeteer based app.
 /// The structure of this struct is:
@@ -25,8 +33,8 @@ pub type EventsMap = HashMap<u64, (&'static str, fn() -> ModifyView)>;
 /// #[derive(Debug)]
 /// pub struct Puppeteer {
 ///     app_name: &'static str,
-///     event_loop: EventLoop<UiEvent>,
-///     proxy: EventLoopProxy<UiEvent>,
+///     event_loop: EventLoop<PageOp>,
+///     proxy: EventLoopProxy<PageOp>,
 ///     window: Window,
 ///     title_bar: TitleBar,
 ///     splash_screen: SplashScreen,
@@ -35,16 +43,16 @@ pub type EventsMap = HashMap<u64, (&'static str, fn() -> ModifyView)>;
 ///     primary_monitor: Option<MonitorHandle>,
 /// }
 /// ```
-#[derive(Debug)]
 pub struct Puppeteer {
     app_name: &'static str,
-    event_loop: EventLoop<UiEvent>,
-    proxy: EventLoopProxy<UiEvent>,
+    event_loop: EventLoop<PageOp>,
+    proxy: EventLoopProxy<PageOp>,
     window: Window,
     title_bar: TitleBar,
     splash_screen: SplashScreen,
     shell: Shell,
     events: EventsMap,
+    pages: PagesMap,
     primary_monitor: Option<MonitorHandle>,
 }
 
@@ -55,7 +63,7 @@ impl Puppeteer {
     /// The `EventLoop` and `EventLoopProxy` is also initialized and passed to the window.
     pub fn new(app_name: &'static str) -> PuppeteerResult<Self> {
         let splash_screen = SplashScreen::default();
-        let event_loop = EventLoop::<UiEvent>::with_user_event();
+        let event_loop = EventLoop::<PageOp>::with_user_event();
         let proxy = event_loop.create_proxy();
         let window = Window::new(&event_loop).unwrap();
         let primary_monitor = window.primary_monitor();
@@ -71,6 +79,7 @@ impl Puppeteer {
             shell: Shell::default(),
             splash_screen,
             events: HashMap::default(),
+            pages: HashMap::default(),
             primary_monitor,
         })
     }
@@ -142,6 +151,24 @@ impl Puppeteer {
         &mut self.window
     }
 
+    /// Expose EventLoop
+    pub fn event_loop(&self) -> &EventLoop<PageOp> {
+        &self.event_loop
+    }
+
+    /// Register a page
+    pub fn register_page(&mut self, page_name: &'static str, page_op: ModifyView) -> &mut Self {
+        self.pages
+            .insert(seahash::hash(page_name.as_bytes()), (page_name, page_op));
+
+        self
+    }
+
+    /// Register a page
+    pub fn list_pages(&self) -> &PagesMap {
+        &self.pages
+    }
+
     /// Register an event. This event will be called from the UI code.
     /// This function arguments take an `event_name` which is used to lookup the event and
     /// a `callback` function which is called to execute the function.
@@ -151,7 +178,7 @@ impl Puppeteer {
     pub fn register_event(
         &mut self,
         event_name: &'static str,
-        callback: fn() -> ModifyView,
+        callback: fn(String) -> (dyn Future<Output = String> + 'static),
     ) -> &mut Self {
         self.events
             .insert(seahash::hash(event_name.as_bytes()), (event_name, callback));
@@ -166,8 +193,8 @@ impl Puppeteer {
 
     /// Add the UI for the root page. The root page is the page immediately loaded after
     /// the app has initialized and it replaces splash screen
-    pub fn with_root_page(&mut self, page: fn() -> ModifyView) -> &mut Self {
-        self.events.insert(
+    pub fn with_root_page(&mut self, page: ModifyView) -> &mut Self {
+        self.pages.insert(
             seahash::hash(PUPPETEER_ROOT_PAGE.as_bytes()),
             (PUPPETEER_ROOT_PAGE, page),
         );
@@ -175,8 +202,8 @@ impl Puppeteer {
         self
     }
 
-    pub fn initialization_error_page(&mut self, page: fn() -> ModifyView) -> &mut Self {
-        self.events.insert(
+    pub fn initialization_error_page(&mut self, page: ModifyView) -> &mut Self {
+        self.pages.insert(
             seahash::hash(PUPPETEER_INIT_ERROR_PAGE.as_bytes()),
             (PUPPETEER_INIT_ERROR_PAGE, page),
         );
@@ -193,7 +220,36 @@ impl Puppeteer {
     /// is false it will load the initialization error page which you can
     /// create a custom one using the `initialization_error_page()` method on the
     /// [Puppeteer] struct.
-    pub fn run(mut self, init_func: fn() -> bool) -> PuppeteerResult<()> {
+    pub fn run<T: ToString + EventHandler + core::fmt::Debug>(
+        mut self,
+        init_func: fn() -> bool,
+    ) -> PuppeteerResult<()> {
+        let (sender, receiver) = bounded::<String>(20);
+
+        /*smol::block_on(async {
+            zip(
+                self.event_loop_runner(init_func, sender),
+                Puppeteer::page_ops_listener(receiver),
+            )
+            .await;
+
+            Ok(())
+        })*/
+        let proxy = self.proxy.clone();
+
+        Ok(())
+    }
+
+    async fn page_ops_listener(receiver: Receiver<u64>) {
+        while let Ok(page) = receiver.recv().await {}
+    }
+
+    async fn event_loop_runner<T: From<String> + EventHandler + core::fmt::Debug + Send + Sync>(
+        mut self,
+        init_func: fn() -> bool,
+        parser_func: Sender<String>,
+        pages_map: PagesMap,
+    ) -> PuppeteerResult<()> {
         self.set_window();
 
         let theme = self.window.theme();
@@ -202,7 +258,7 @@ impl Puppeteer {
 
         let proxy = self.proxy.clone();
 
-        let handler = Puppeteer::handler(self.proxy);
+        let handler = Puppeteer::handler(proxy);
         let mut webview = Some(
             WebViewBuilder::new(self.window)?
                 .with_html(self.shell.to_html())?
@@ -210,24 +266,35 @@ impl Puppeteer {
                 .build()?,
         );
 
-        let primary_monitor = self.primary_monitor;
+        let primary_monitor = self.primary_monitor.as_ref().cloned();
+        let proxy = self.proxy.clone();
 
         smol::spawn(async move {
-            if init_func() {
+            /*if init_func() {
                 proxy
-                    .send_event(seahash::hash(PUPPETEER_INITIALIZED_APP.as_bytes()))
+                    .send_event(PUPPETEER_INITIALIZED_APP.to_owned())
                     .unwrap();
             } else {
                 proxy
-                    .send_event(seahash::hash(PUPPETEER_INIT_ERROR_PAGE.as_bytes()))
+                    .send_event(PUPPETEER_INIT_ERROR_PAGE.to_string())
                     .unwrap();
-            }
+            }*/
         })
         .detach();
 
-        let initialized_app_hash = seahash::hash(PUPPETEER_INITIALIZED_APP.as_bytes());
-        let close_window_hash = seahash::hash(b"close_window");
-        let error_page_hash = seahash::hash(PUPPETEER_INIT_ERROR_PAGE.as_bytes());
+        let (sender, receiver) = bounded::<String>(20);
+
+        smol::spawn(async move {
+            while let Ok(received) = receiver.recv().await {
+                let parsed = T::event_logic(&received);
+
+                let executed = parsed.view_model().await;
+                let prepared = Cow::Borrowed(COMMAND_UI_UPDATE) + executed.to_html();
+
+                proxy.send_event(prepared.to_string()).unwrap();
+            }
+        })
+        .detach();
 
         self.event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Wait;
@@ -236,7 +303,7 @@ impl Puppeteer {
                 Event::NewEvents(StartCause::Init) => {
                     Puppeteer::view_ops(
                         &mut webview,
-                        ModifyView::ReplaceView(Box::new(self.splash_screen.clone())),
+                        &ModifyView::ReplaceView(Box::new(self.splash_screen.clone())),
                     );
 
                     println!("Puppeteer Application Started"); //TODO Use logging to give more useful info about the program and window like rocket does
@@ -249,7 +316,38 @@ impl Puppeteer {
                     *control_flow = ControlFlow::Exit
                 }
                 Event::UserEvent(ui_event) => {
-                    if ui_event == initialized_app_hash {
+                    if ui_event.as_str().starts_with(COMMAND_ROOT_UI) {
+                        let inner_size = webview.as_ref().unwrap().inner_size();
+                        let window = webview.as_ref().unwrap().window();
+
+                        let size_params =
+                            Puppeteer::window_position_calc(primary_monitor.as_ref(), inner_size);
+                        Puppeteer::set_outer_position(size_params.0, window);
+                        Puppeteer::set_inner_size(size_params.1, window);
+
+                        Puppeteer::view_ops(
+                            &mut webview,
+                            &ModifyView::ReplaceView(Box::new(self.shell.clone())),
+                        );
+
+                        if let Some(root_ui) =
+                            pages_map.get(&seahash::hash(PUPPETEER_ROOT_PAGE.as_bytes()))
+                        {
+                            Puppeteer::view_ops(&mut webview, &root_ui.1);
+                        } else {
+                            Puppeteer::view_ops(&mut webview, &root_ui_not_found());
+                        };
+                    } else if ui_event.as_bytes() == "close_window".as_bytes() {
+                        let _ = webview.take();
+                        *control_flow = ControlFlow::Exit
+                    } else if ui_event.as_str().starts_with(COMMAND_UI_UPDATE) {
+                    } else {
+                        smol::block_on(async { sender.send(ui_event).await.unwrap() })
+                    }
+
+                    //smol::spawn(async { proxy.send_event(String::new()).unwrap() }).detach();
+
+                    /*if ui_event.as_bytes() == PUPPETEER_INITIALIZED_APP.as_bytes() {
                         let inner_size = webview.as_ref().unwrap().inner_size();
                         let window = webview.as_ref().unwrap().window();
 
@@ -263,9 +361,15 @@ impl Puppeteer {
                             ModifyView::ReplaceView(Box::new(self.shell.clone())),
                         );
 
-                        let root_ui = load_root(&self.events);
+                        let root_ui = if let Some(root_ui) =
+                            pages_map.get(&seahash::hash(PUPPETEER_ROOT_PAGE.as_bytes()))
+                        {
+                            root_ui.1
+                        } else {
+                            root_ui_not_found()
+                        };
                         Puppeteer::view_ops(&mut webview, root_ui);
-                    } else if ui_event == close_window_hash {
+                    } else if ui_event.as_bytes() == "close_window".as_bytes() {
                         let _ = webview.take();
                         *control_flow = ControlFlow::Exit
                     } else if ui_event == error_page_hash {
@@ -283,21 +387,21 @@ impl Puppeteer {
                         Puppeteer::view_ops(&mut webview, outcome);
                     } else {
                         Puppeteer::view_ops(&mut webview, event_not_found())
-                    }
+                    }*/
                 }
                 _ => (),
             }
         });
     }
 
-    fn view_ops(webview: &mut Option<WebView>, data: ModifyView) {
+    fn view_ops(webview: &mut Option<WebView>, data: &ModifyView) {
         let html = data.to_html();
 
         webview.as_ref().unwrap().evaluate_script(&html).unwrap();
     }
 
     fn window_position_calc(
-        primary_monitor: Option<MonitorHandle>,
+        primary_monitor: Option<&MonitorHandle>,
         inner_size: PhysicalSize<u32>,
     ) -> (PhysicalPosition<i32>, PhysicalSize<u32>) {
         dbg!(&primary_monitor); //TODO Log this
@@ -328,22 +432,12 @@ impl Puppeteer {
         window.set_inner_size(inner_size);
     }
 
-    fn handler(proxy: EventLoopProxy<UiEvent>) -> impl Fn(&Window, String) {
+    fn handler(proxy: EventLoopProxy<String>) -> impl Fn(&Window, String) {
         move |window: &Window, req: String| match req.as_str() {
             "minimize" => window.set_minimized(true),
             "maximize" => window.set_maximized(!window.is_maximized()),
             "drag_window" => window.drag_window().unwrap(), //FIXME Handle me
-            _ => {
-                proxy.send_event(seahash::hash(req.as_bytes())).unwrap(); //FIXME
-            }
+            _ => proxy.send_event(req).unwrap(),
         }
-    }
-}
-
-fn load_root(events_map: &EventsMap) -> ModifyView {
-    if let Some(root_ui) = events_map.get(&seahash::hash(PUPPETEER_ROOT_PAGE.as_bytes())) {
-        root_ui.1()
-    } else {
-        root_ui_not_found()
     }
 }

@@ -17,22 +17,6 @@ pub const ROOT_UI_NOT_FOUND: &str = r#"
 </div>
 "#;
 
-pub fn event_not_found() -> ModifyView {
-    let html_data = Box::new(HtmlStaticContent {
-        content: EVENT_NOT_FOUND,
-    });
-
-    ModifyView::replace_app(html_data)
-}
-
-pub const EVENT_NOT_FOUND: &str = r#"
-<div style="display: flex; justify-content: space-around; align-items: center; flex-direction: column; min-height: 50vh; ">
-    <h1>EVENT NOT REGISTERED</h1>
-    <p>Event was called Successfully but does not appear to be registered in the <b>EventsMap</b></p>
-    <p>Register the event by calling the <b>register_event()</b> method on the variable you defined as <b>Puppeteer::new("App Name")</b></p>
-</div>
-"#;
-
 pub const INIT_ERROR_PAGE_NOT_FOUND: &str = r#"
 <div style="display: flex; justify-content: space-around; align-items: center; flex-direction: column; min-height: 50vh; ">
     <h1>THERE WAS A PROBLEM INITIALIZING THE APPLICATION NOT REGISTERED</h1>
