@@ -36,6 +36,3 @@ pub use page::*;
 
 mod shell;
 pub use shell::*;
-
-mod error_pages;
-pub use error_pages::*;

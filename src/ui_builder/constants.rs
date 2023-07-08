@@ -1,15 +1,3 @@
-pub const PUPPETEER_INITIALIZED_APP: &str = "PuppeteerInitializedApp";
-
-pub const PUPPETEER_ADD_STYLE: &str = "PuppeteerAddStyle";
-
-pub const PUPPETEER_REMOVE_STYLE: &str = "PuppeteerRemoveStyle";
-
-pub const PUPPETEER_CSS_RESET_STYLES: &str = "PuppeteerCssResetStyles";
-
-pub const PUPPETEER_ROOT_PAGE: &str = "PuppeteerRootPage";
-
-pub const PUPPETEER_INIT_ERROR_PAGE: &str = "PuppeteerInitErrorPage";
-
 pub const COMMAND_UI_UPDATE: &str = "PuppUi»";
 
 pub const COMMAND_ROOT_UI: &str = "RootUi»";

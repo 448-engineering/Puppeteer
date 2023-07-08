@@ -1,7 +1,10 @@
-use puppeteer::{ModifyView, Puppeteer};
+use puppeteer::{EventHandler, ModifyView, Puppeteer};
 
 fn main() {
-    let mut app = Puppeteer::new("Simple App").unwrap();
+    Puppeteer::new("Simple App")
+        .unwrap()
+        .run::<UserEvents>()
+        .unwrap();
 
     // .add_style("splash_animation", SPLASH_ANIMATION_CSS);
     //.set_title_bar_type(puppeteer::TitleBarType::Native)
@@ -14,32 +17,47 @@ fn main() {
     .set_style(include_str!("./simple.css"));*/
 
     //app.set_shell(shell);
-    app.with_root_page(root_page);
-    app.register_event("success_route", success);
-    app.run(init).unwrap();
 }
 
-pub fn init() -> bool {
-    println!("RUNNING INIT");
-
-    std::thread::sleep(std::time::Duration::from_secs(2));
-
-    true
+#[derive(Debug)]
+enum UserEvents {
+    NewPage,
+    Unsupported,
 }
 
-pub fn root_page() -> ModifyView {
-    let data = r#"
+impl From<String> for UserEvents {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "success_route" => UserEvents::NewPage,
+            _ => UserEvents::Unsupported,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl EventHandler for UserEvents {
+    async fn init_func() -> ModifyView {
+        println!("RUNNING INIT");
+
+        std::thread::sleep(std::time::Duration::from_secs(2));
+
+        let data = r#"
     <div>AFTER SPLASH</div>
     <button onclick="window.ipc.postMessage('success_route')">ROUTE TO NEW PAGE</button>
     "#;
 
-    ModifyView::replace_app(data.into())
-}
+        ModifyView::replace_view(data.into())
+    }
 
-pub fn success() -> ModifyView {
-    let data = "<div>SUCCESS ROUTING</div>";
+    async fn view_model(&self) -> ModifyView {
+        println!("ROUTING");
 
-    ModifyView::replace_app(data.into())
+        std::thread::sleep(std::time::Duration::from_secs(5));
+
+        let data = "<div>SUCCESS ROUTING</div>";
+
+        ModifyView::replace_app(data.into())
+    }
 }
 
 pub const PUPPETEER_ANIMATION: &str = r#"

@@ -8,7 +8,7 @@ pub fn to_html_event<'p>(event: impl UiPaint) -> Cow<'p, str> {
 
 #[async_trait]
 pub trait EventHandler {
-    fn event_logic(value: &str) -> Self;
-
     async fn view_model(&self) -> ModifyView;
+
+    async fn init_func() -> ModifyView;
 }
