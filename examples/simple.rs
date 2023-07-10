@@ -46,7 +46,7 @@ impl EventHandler for UserEvents {
     <button onclick="window.ipc.postMessage('success_route')">ROUTE TO NEW PAGE</button>
     "#;
 
-        ModifyView::replace_view(data.into())
+        ModifyView::replace_app(data.into())
     }
 
     async fn view_model(&self) -> ModifyView {

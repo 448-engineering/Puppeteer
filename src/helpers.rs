@@ -104,7 +104,7 @@ pub struct IconCreator {} //TODO
 pub enum ModifyView {
     /// Replaces the node in the view.
     /// For webview, it will replace everything in the webpage
-    ReplaceView(UiPaintBoxed),
+    ReplaceShell(UiPaintBoxed),
     /// Replaces node after the titlebar
     ReplaceApp(UiPaintBoxed),
     /// Replaces the node with the specified ID
@@ -114,8 +114,8 @@ pub enum ModifyView {
 }
 
 impl ModifyView {
-    pub fn replace_view(data: UiPaintBoxed) -> ModifyView {
-        ModifyView::ReplaceView(data)
+    pub fn replace_shell(data: UiPaintBoxed) -> ModifyView {
+        ModifyView::ReplaceShell(data)
     }
 
     pub fn replace_app(data: UiPaintBoxed) -> ModifyView {
@@ -140,7 +140,7 @@ impl ModifyView {
 impl UiPaint for ModifyView {
     fn to_html(&self) -> Cow<str> {
         match self {
-            Self::ReplaceView(content) => {
+            Self::ReplaceShell(content) => {
                 Cow::Borrowed(r#"document.documentElement.innerHTML=`"#) + content.to_html() + "`;"
             }
             Self::ReplaceApp(content) => {
@@ -158,5 +158,3 @@ impl UiPaint for ModifyView {
         }
     }
 }
-
-unsafe impl Send for ModifyView {}

@@ -1,6 +1,8 @@
-pub const COMMAND_UI_UPDATE: &str = "PuppUi»";
+pub const COMMAND_APP: &str = "APP»";
 
-pub const COMMAND_ROOT_UI: &str = "RootUi»";
+pub const COMMAND_SHELL: &str = "SHELL»";
+
+pub const COMMAND_INIT: &str = "INIT»";
 
 pub const TITLE_BAR_SCRIPT: &str = r#"
 <script>

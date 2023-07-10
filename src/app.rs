@@ -1,6 +1,8 @@
+#![forbid(unsafe_code)]
+
 use crate::{
     EventHandler, ModifyView, PuppeteerResult, Shell, SplashScreen, Theme, TitleBar, TitleBarType,
-    UiPaint, COMMAND_ROOT_UI, COMMAND_UI_UPDATE,
+    UiPaint, COMMAND_APP, COMMAND_INIT, COMMAND_SHELL,
 };
 use std::borrow::Cow;
 use wry::{
@@ -171,15 +173,16 @@ impl Puppeteer {
         );
 
         let primary_monitor = self.primary_monitor.as_ref().cloned();
-        let rootui_init_proxy = self.proxy.clone();
+        let init_proxy = self.proxy.clone();
 
         smol::spawn(async move {
             let initialized = T::init_func().await;
-            let prepare_html = Cow::Borrowed(COMMAND_ROOT_UI) + initialized.to_html();
 
-            rootui_init_proxy
-                .send_event(prepare_html.to_string())
-                .unwrap();
+            init_proxy.send_event(COMMAND_INIT.to_string()).unwrap();
+
+            let app_html = Cow::Borrowed(COMMAND_APP) + initialized.to_html();
+
+            init_proxy.send_event(app_html.to_string()).unwrap();
         })
         .detach();
 
@@ -190,7 +193,7 @@ impl Puppeteer {
                 Event::NewEvents(StartCause::Init) => {
                     Puppeteer::view_ops(
                         &mut webview,
-                        &ModifyView::ReplaceView(Box::new(self.splash_screen.clone())),
+                        &ModifyView::ReplaceShell(Box::new(self.splash_screen.clone())),
                     );
 
                     println!("Puppeteer Application Started"); //TODO Use logging to give more useful info about the program and window like rocket does
@@ -203,9 +206,7 @@ impl Puppeteer {
                     *control_flow = ControlFlow::Exit
                 }
                 Event::UserEvent(ui_event) => {
-                    dbg!(&ui_event);
-
-                    if ui_event.as_str().starts_with(COMMAND_ROOT_UI) {
+                    if ui_event.as_str().starts_with(COMMAND_INIT) {
                         let inner_size = webview.as_ref().unwrap().inner_size();
                         let window = webview.as_ref().unwrap().window();
 
@@ -214,13 +215,23 @@ impl Puppeteer {
                         Puppeteer::set_outer_position(size_params.0, window);
                         Puppeteer::set_inner_size(size_params.1, window);
 
-                        let html = ui_event.replace(COMMAND_ROOT_UI, "");
+                        let html = Cow::Borrowed(r#"document.documentElement.innerHTML=`"#)
+                            + self.shell.to_html()
+                            + "`;";
+
+                        Puppeteer::view_ops_prepared(&mut webview, &html);
+                    } else if ui_event.as_str().starts_with(COMMAND_SHELL) {
+                        let html = Cow::Borrowed(r#"document.documentElement.innerHTML=`"#)
+                            + self.shell.to_html()
+                            + "`;";
+
                         Puppeteer::view_ops_prepared(&mut webview, &html);
                     } else if ui_event.as_bytes() == "close_window".as_bytes() {
                         let _ = webview.take();
                         *control_flow = ControlFlow::Exit
-                    } else if ui_event.as_str().starts_with(COMMAND_UI_UPDATE) {
-                        let html = ui_event.replace(COMMAND_UI_UPDATE, "");
+                    } else if ui_event.as_str().starts_with(COMMAND_APP) {
+                        let html = ui_event.replace(COMMAND_APP, "");
+
                         Puppeteer::view_ops_prepared(&mut webview, &html);
                     } else {
                         let proxy = self.proxy.clone();
@@ -228,10 +239,8 @@ impl Puppeteer {
                         smol::spawn(async move {
                             let parsed: T = ui_event.into();
 
-                            dbg!(&parsed);
-
                             let executed = parsed.view_model().await;
-                            let prepared = Cow::Borrowed(COMMAND_UI_UPDATE) + executed.to_html();
+                            let prepared = Cow::Borrowed(COMMAND_APP) + executed.to_html();
 
                             proxy.send_event(prepared.to_string()).unwrap();
                         })
