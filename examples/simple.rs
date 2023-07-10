@@ -3,20 +3,10 @@ use puppeteer::{EventHandler, ModifyView, Puppeteer};
 fn main() {
     Puppeteer::new("Simple App")
         .unwrap()
+        //.set_title_bar_type(puppeteer::TitleBarType::Native); // Set the type of title bar to use
+        //app.set_default_theme(puppeteer::Theme::Light); //set the type of theme to be used as default
         .run::<UserEvents>()
         .unwrap();
-
-    // .add_style("splash_animation", SPLASH_ANIMATION_CSS);
-    //.set_title_bar_type(puppeteer::TitleBarType::Native)
-
-    //app.set_title_bar_type(puppeteer::TitleBarType::Native)
-    //app.shell.set_theme(Theme::Light);
-
-    /*let shell = Shell::default()
-    .set_scripts(include_str!("./simple.html"))
-    .set_style(include_str!("./simple.css"));*/
-
-    //app.set_shell(shell);
 }
 
 #[derive(Debug)]
