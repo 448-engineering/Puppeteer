@@ -1,5 +1,13 @@
-use crate::HtmlStaticContent;
+use crate::ModifyView;
+use async_trait::async_trait;
 use std::borrow::Cow;
+
+#[async_trait]
+pub trait EventHandler {
+    async fn view_model(&self) -> ModifyView;
+
+    async fn init_func() -> ModifyView;
+}
 
 pub trait UiPaint {
     fn to_native(&self) -> () {
@@ -27,6 +35,6 @@ pub trait StyleDeclaration {
 
 impl From<&'static str> for Box<dyn UiPaint> {
     fn from(value: &'static str) -> Self {
-        Box::new(HtmlStaticContent { content: value })
+        Box::new(crate::HtmlStaticContent { content: value })
     }
 }

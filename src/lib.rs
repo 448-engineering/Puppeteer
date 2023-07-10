@@ -23,6 +23,7 @@ pub use helpers::*;
 mod ui_builder;
 pub use ui_builder::*;
 
+#[cfg(feature = "native")]
 #[cfg(test)]
 mod sanity_tests {
     use crate::{
