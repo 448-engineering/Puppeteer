@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use crate::{
-    EventHandler, ModifyView, PuppeteerResult, Shell, SplashScreen, Theme, TitleBar, TitleBarType,
+    EventHandler, ModifyView, PuppeteerResult, Shell, SplashScreen, TitleBar, TitleBarType,
     UiPaint, COMMAND_APP, COMMAND_INIT, COMMAND_SHELL,
 };
 use std::borrow::Cow;
@@ -86,9 +86,9 @@ impl Puppeteer {
         self
     }
 
-    /// Change the default theme to a new [Theme]. The default theme is dark mode
-    pub fn set_default_theme(&mut self, theme: Theme) -> &mut Self {
-        self.shell.set_theme(theme);
+    /// Toggle the [Theme]. The default theme is dark mode
+    pub fn toggle_theme(&mut self) -> &mut Self {
+        self.shell.toggle_theme();
 
         self
     }
@@ -157,10 +157,6 @@ impl Puppeteer {
         mut self,
     ) -> PuppeteerResult<()> {
         self.set_window();
-
-        let theme = self.window.theme();
-        let theme: Theme = theme.into();
-        self.set_default_theme(theme);
 
         let proxy = self.proxy.clone();
 

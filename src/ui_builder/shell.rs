@@ -1,19 +1,21 @@
-use crate::{TitleBar, UiPaint, CSS_RESET_STYLE, TITLE_BAR_SCRIPT};
+use crate::{TitleBar, UiPaint, TITLE_BAR_SCRIPT};
+use arrayvec::ArrayVec;
 use std::{borrow::Cow, collections::HashMap};
 use wry::application::window::Theme as WryTheme;
 
 pub type Style<'p> = (&'p str, Cow<'p, str>);
 pub type StylesMap<'p> = HashMap<u64, Style<'p>>; //(Style name, style)
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Shell {
     title: &'static str,
-    style: &'static str,
+    head_links: ArrayVec<&'static str, 20>,
+    styles: ArrayVec<&'static str, 10>,
     theme: Theme,
     theme_light: &'static str, //FIXME switch to `HexColor`
     theme_dark: &'static str,  //FIXME switch to `HexColor`
     title_bar: TitleBar,
-    scripts: &'static str,
+    scripts: ArrayVec<&'static str, 10>,
 }
 
 impl Shell {
@@ -27,14 +29,20 @@ impl Shell {
         self
     }
 
-    pub fn set_style(mut self, style: &'static str) -> Self {
-        self.style = style;
+    pub fn add_head_links(mut self, element: &'static str) -> Self {
+        self.head_links.push(element);
 
         self
     }
 
-    pub fn set_scripts(mut self, scripts: &'static str) -> Self {
-        self.scripts = scripts;
+    pub fn add_style(mut self, style: &'static str) -> Self {
+        self.styles.push(style);
+
+        self
+    }
+
+    pub fn set_scripts(mut self, script: &'static str) -> Self {
+        self.scripts.push(script);
 
         self
     }
@@ -45,8 +53,10 @@ impl Shell {
         self
     }
 
-    pub fn set_theme(mut self, theme: Theme) -> Self {
-        self.theme = theme;
+    pub fn toggle_theme(&mut self) -> &mut Self {
+        let toggled = self.theme.toggle_theme();
+
+        self.theme = toggled;
 
         self
     }
@@ -67,12 +77,16 @@ impl Shell {
         self.title
     }
 
-    pub fn style(&self) -> &'static str {
-        self.style
+    pub fn head_links(&self) -> &[&'static str] {
+        self.head_links.as_slice()
     }
 
-    pub fn scripts(&self) -> &'static str {
-        self.scripts
+    pub fn styles(&self) -> &[&'static str] {
+        self.styles.as_slice()
+    }
+
+    pub fn scripts(&self) -> &[&'static str] {
+        self.scripts.as_slice()
     }
 
     pub fn title_bar(&self) -> TitleBar {
@@ -110,16 +124,34 @@ impl UiPaint for Shell {
             self.theme_light
         };
 
+        let head_links = self
+            .head_links
+            .iter()
+            .map(|head_link| head_link.to_owned())
+            .collect::<String>();
+
+        let styles = self
+            .styles
+            .iter()
+            .map(|style| style.to_owned())
+            .collect::<String>();
+
+        let scripts = self
+            .scripts
+            .iter()
+            .map(|script| script.to_owned())
+            .collect::<String>();
+
         Cow::Borrowed("<!DOCTYPE html>")
             + "<head>"
             + r#"<meta charset="UTF-8">"#
             + r#"<meta name="viewport" content="width=device-width, initial-scale=1.0">"#
+            + Cow::Owned(head_links)
             + "<title>"
             + self.title
             + "</title>"
             + "<style>"
-            + CSS_RESET_STYLE
-            + self.style
+            + Cow::Owned(styles)
             + self.title_bar.style()
             + "body { "
             + "background-color: "
@@ -135,7 +167,7 @@ impl UiPaint for Shell {
             + self.title_bar.to_html()
             + r#"<div id="puppeteer_app"></div>"#
             + TITLE_BAR_SCRIPT
-            + self.scripts
+            + Cow::Owned(scripts)
             + "</body>"
             + "</html>"
     }
@@ -145,12 +177,13 @@ impl Default for Shell {
     fn default() -> Self {
         Shell {
             title: "Puppeteer App",
-            style: "",
+            styles: ArrayVec::new(),
+            head_links: ArrayVec::new(),
             theme: Theme::System,
             theme_dark: "#1b1b1b",
             theme_light: "#fafafa",
             title_bar: TitleBar::default(),
-            scripts: "",
+            scripts: ArrayVec::new(),
         }
     }
 }
@@ -160,6 +193,16 @@ pub enum Theme {
     Dark,
     Light,
     System,
+}
+
+impl Theme {
+    pub fn toggle_theme(&self) -> Self {
+        match self {
+            Self::Dark => Self::Light,
+            Self::Light => Self::Dark,
+            Self::System => Self::Dark,
+        }
+    }
 }
 
 impl From<WryTheme> for Theme {
