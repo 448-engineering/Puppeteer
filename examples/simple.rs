@@ -1,122 +1,36 @@
-use puppeteer::{EventHandler, ModifyView, Puppeteer};
+use puppeteer::{AppEnvironment, InvokeWebView, OsFamily, OsType, Puppeteer};
 
 fn main() {
-    Puppeteer::new("Simple App")
-        .unwrap()
-        //.set_title_bar_type(puppeteer::TitleBarType::Native); // Set the type of title bar to use
-        //app.set_default_theme(puppeteer::Theme::Light); //set the type of theme to be used as default
-        .run::<UserEvents>()
-        .unwrap();
-}
+    {
+        // Detect App OS
+        if cfg!(target_os = "linux") {
+            assert_eq!(OsType::Linux, OsType::which_os().into());
+        } else if cfg!(target_os = "windows") {
+            assert_eq!(OsType::Windows, OsType::which_os().into());
+        } else if cfg!(target_os = "macos") {
+            assert_eq!(OsType::MacOs, OsType::which_os().into());
+        } else if cfg!(target_os = "silly_os") {
+            assert_eq!(OsType::UnrecognizedOs, OsType::which_os().into());
+        }
+    }
 
-#[derive(Debug)]
-enum UserEvents {
-    NewPage,
-    Unsupported,
-}
+    {
+        // Detect app environment by initializing the `AppEnvironment` struct with `init()` method
+        let init_app_env = AppEnvironment::init();
 
-impl From<String> for UserEvents {
-    fn from(value: String) -> Self {
-        match value.as_str() {
-            "success_route" => UserEvents::NewPage,
-            _ => UserEvents::Unsupported,
+        if cfg!(target_os = "linux") {
+            assert_eq!(init_app_env.os, OsType::which_os().into());
+        } else if cfg!(target_os = "windows") {
+            assert_eq!(init_app_env.os, OsType::which_os().into());
+        } else if cfg!(target_os = "macos") {
+            assert_eq!(init_app_env.os, OsType::which_os().into());
+        } else {
+        }
+
+        if cfg!(target_arch = "unix") {
+            assert_eq!(init_app_env.family, OsFamily::which_os_family().into());
+        } else if cfg!(target_family = "windows") {
+            assert_eq!(init_app_env.family, OsFamily::which_os_family().into());
         }
     }
 }
-
-#[async_trait::async_trait]
-impl EventHandler for UserEvents {
-    async fn init_func() -> ModifyView {
-        println!("RUNNING INIT");
-
-        std::thread::sleep(std::time::Duration::from_secs(2));
-
-        let data = r#"
-    <div>AFTER SPLASH</div>
-    <button onclick="window.ipc.postMessage('success_route')">ROUTE TO NEW PAGE</button>
-    "#;
-
-        ModifyView::replace_app(data.into())
-    }
-
-    async fn view_model(&self) -> ModifyView {
-        println!("ROUTING");
-
-        std::thread::sleep(std::time::Duration::from_secs(2));
-
-        let data = "<div>SUCCESS ROUTING</div>";
-
-        ModifyView::replace_app(data.into())
-    }
-}
-
-pub const PUPPETEER_ANIMATION: &str = r#"
-<div class="lds-ellipsis">
-    <div></div>
-    <div></div>
-    <div></div>
-    <div></div>
-</div>
-"#;
-
-pub const SPLASH_ANIMATION_CSS: &str = r#"
-#splashscreen {
-    width: 100%;
-}
-.lds-ellipsis {
-    display: inline-block;
-    position: relative;
-    width: 80px;
-    height: 80px;
-  }
-  .lds-ellipsis div {
-    position: absolute;
-    top: 33px;
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
-    background: #fff;
-    animation-timing-function: cubic-bezier(0, 1, 1, 0);
-  }
-  .lds-ellipsis div:nth-child(1) {
-    left: 8px;
-    animation: lds-ellipsis1 0.6s infinite;
-  }
-  .lds-ellipsis div:nth-child(2) {
-    left: 8px;
-    animation: lds-ellipsis2 0.6s infinite;
-  }
-  .lds-ellipsis div:nth-child(3) {
-    left: 32px;
-    animation: lds-ellipsis2 0.6s infinite;
-  }
-  .lds-ellipsis div:nth-child(4) {
-    left: 56px;
-    animation: lds-ellipsis3 0.6s infinite;
-  }
-  @keyframes lds-ellipsis1 {
-    0% {
-      transform: scale(0);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-  @keyframes lds-ellipsis3 {
-    0% {
-      transform: scale(1);
-    }
-    100% {
-      transform: scale(0);
-    }
-  }
-  @keyframes lds-ellipsis2 {
-    0% {
-      transform: translate(0, 0);
-    }
-    100% {
-      transform: translate(24px, 0);
-    }
-  }
-  
-"#;
