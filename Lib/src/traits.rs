@@ -6,7 +6,7 @@ use std::borrow::Cow;
 /// and generating content to be displayed
 pub trait InvokeWebView {
     /// Method is run to generate a [Shell].
-    fn shell(&self) -> Shell;
+    fn shell() -> Shell;
     /// Parse the IPC message.
     /// Make sure you handle the errors received from the proxy.
     /// These errors start with the following keywords

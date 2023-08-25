@@ -14,8 +14,14 @@ pub use traits::*;
 mod errors;
 pub use errors::*;
 
-pub use async_executor;
+mod logging;
+pub use logging::*;
+
+mod shell;
+pub use shell::*;
+
 /// Reuse crates in the lib for better compatibility
+pub use async_executor;
 pub use async_trait;
 pub use thiserror;
 pub use tracing;

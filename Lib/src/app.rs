@@ -1,4 +1,4 @@
-use crate::{AppEnvironment, PuppeteerResult};
+use crate::{AppEnvironment, Logging, PuppeteerResult, Shell, UiPaint};
 use async_executor::Executor;
 use tracing::Level;
 use wry::{
@@ -7,7 +7,7 @@ use wry::{
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopClosed, EventLoopProxy},
         monitor::MonitorHandle,
-        window::Window,
+        window::{Window, WindowBuilder},
     },
     webview::{WebView, WebViewBuilder},
 };
@@ -36,9 +36,11 @@ where
         let proxy = event_loop.create_proxy();
         Logging::new(title).log("INITIALIZED EVENT_LOOP PROXY");
 
-        let window = Window::new(&event_loop)?;
+        let window = WindowBuilder::new()
+            .with_title(title)
+            .with_decorations(false)
+            .build(&event_loop)?;
         Logging::new(title).log("INITIALIZED WINDOW");
-        window.set_decorations(false);
 
         let primary_monitor = window.primary_monitor();
 
@@ -70,9 +72,12 @@ where
     pub async fn start(self) -> PuppeteerResult<(), T> {
         let handler = Puppeteer::handler(self.proxy.clone(), &self.log_filter_name);
 
+        let devtools_enabled = if cfg!(debug_assertions) { true } else { false };
+
         let mut webview = Some(
             WebViewBuilder::new(self.window)?
-                .with_html("FOO")?
+                .with_html(T::shell().to_html())?
+                .with_devtools(devtools_enabled)
                 .with_ipc_handler(handler)
                 .build()?,
         );
@@ -82,7 +87,7 @@ where
 
         let executor = Executor::new();
 
-        executor.spawn(async {}).await;
+        executor.spawn(async {}).detach();
 
         self.event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Wait;
@@ -98,10 +103,48 @@ where
                     let _ = webview.take();
                     *control_flow = ControlFlow::Exit
                 }
-                Event::UserEvent(ui_event) => {}
+                Event::UserEvent(ui_event) => {
+                    let inner_size = webview.as_ref().unwrap().inner_size();
+                    let window = webview.as_ref().unwrap().window();
+
+                    let size_params =
+                        Self::window_position_calc(primary_monitor.as_ref(), inner_size);
+                    Self::set_outer_position(size_params.0, window);
+                    Self::set_inner_size(size_params.1, window);
+                }
                 _ => (),
             }
         });
+    }
+
+    fn window_position_calc(
+        primary_monitor: Option<&MonitorHandle>,
+        inner_size: PhysicalSize<u32>,
+    ) -> (PhysicalPosition<i32>, PhysicalSize<u32>) {
+        let screen_size = if let Some(some_monitor) = primary_monitor {
+            PhysicalSize {
+                width: (some_monitor.size().width as f32 * 0.9) as u32,
+                height: (some_monitor.size().height as f32 * 0.9) as u32,
+            }
+        } else {
+            PhysicalSize {
+                width: (1270f32 * 0.95) as u32, //FIXME Set window to maximized if outer position cannot be detected
+                height: (720f32 * 0.95) as u32, //FIXME Set window to maximized if outer position cannot be detected
+            }
+        };
+
+        let x = (screen_size.width as i32 - inner_size.width as i32) / 2;
+        let y = (screen_size.height as i32 - inner_size.height as i32) / 2;
+
+        (PhysicalPosition { x, y }, screen_size)
+    }
+
+    fn set_outer_position(outer_size: PhysicalPosition<i32>, window: &Window) {
+        window.set_outer_position(outer_size);
+    }
+
+    fn set_inner_size(inner_size: PhysicalSize<u32>, window: &Window) {
+        window.set_inner_size(inner_size);
     }
 
     fn handler(
@@ -114,7 +157,7 @@ where
             "drag_window" => match window.drag_window() {
                 Ok(_) => (),
                 Err(error) => {
-                    let req_parse = T::parse(&format!("{}{}", ERROR_PREFIX, error));
+                    let req_parse = T::parse(&format!("{}{}", crate::ERROR_PREFIX, error));
                     Puppeteer::proxy_error_handler(proxy.send_event(req_parse), log_filter_name);
                 }
             },
@@ -137,50 +180,3 @@ where
         }
     }
 }
-
-/// Name that can be used to quickly identify all filters of the running app in logs.
-pub const LOGGING_SYMBOL: &str = "» ";
-/// This is the String used to indicate an error has been sent via the `EventLoopProxy`
-pub const ERROR_PREFIX: &str = "PuppeteerError» ";
-
-/// Custom logging handler for Puppeteer apps.
-/// Text filtering can be done by searching for `[app_title]»`
-#[derive(Debug, PartialEq, Eq)]
-pub struct Logging {
-    level: Level,
-    app_name: &'static str,
-}
-
-impl Logging {
-    /// Add the app name to be used in logging so that the logs can be filtered using the app name.
-    /// The default tracing level is info
-    pub fn new(app_name: &'static str) -> Self {
-        Logging {
-            level: Level::INFO,
-            app_name,
-        }
-    }
-
-    /// Change the name used to identify logging by this app in the logs.
-    /// Default is `Level::INFO `.
-    pub fn with_level(mut self, level: Level) -> Self {
-        self.level = level;
-
-        self
-    }
-
-    /// Log the message. This is a simple logging mechanism
-    pub fn log(self, message: &str) {
-        match self.level {
-            Level::DEBUG => tracing::debug!("{}{}{}", self.app_name, LOGGING_SYMBOL, message),
-            Level::ERROR => tracing::error!("{}{}{}", self.app_name, LOGGING_SYMBOL, message),
-            Level::INFO => tracing::info!("{}{}{}", self.app_name, LOGGING_SYMBOL, message),
-            Level::TRACE => tracing::trace!("{}{}{}", self.app_name, LOGGING_SYMBOL, message),
-            Level::WARN => tracing::warn!("{}{}{}", self.app_name, LOGGING_SYMBOL, message),
-        }
-    }
-}
-
-/// Used to add styles, scripts and fonts.
-/// It can also change the webview title in HTML.
-pub struct Shell {}

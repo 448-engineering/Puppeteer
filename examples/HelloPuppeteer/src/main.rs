@@ -1,6 +1,6 @@
 use puppeteer::{
     tracing::{self, Level},
-    InvokeWebView, Puppeteer,
+    InvokeWebView, Puppeteer, Shell,
 };
 use tracing_subscriber::FmtSubscriber;
 
@@ -35,8 +35,8 @@ impl AsRef<str> for AppTest {
 }
 
 impl InvokeWebView for AppTest {
-    fn shell(&self) -> puppeteer::Shell {
-        puppeteer::Shell {}
+    fn shell() -> Shell {
+        Shell::new().add_style("body {background-color: #1a1a1a}")
     }
 
     fn parse(message: &str) -> Self {
