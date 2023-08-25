@@ -1,6 +1,6 @@
 use puppeteer::{
     tracing::{self, Level},
-    InvokeWebView, Puppeteer, Shell,
+    InvokeWebView, Puppeteer, PuppeteerApp, Shell, UiPaint,
 };
 use tracing_subscriber::FmtSubscriber;
 
@@ -14,7 +14,7 @@ fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let mut app = Puppeteer::<AppTest>::init("Puppeteer Test App").unwrap();
+    let mut app = PuppeteerApp::<AppTest>::init("Puppeteer Test App").unwrap();
 
     smol::block_on(async { app.start().await.unwrap() })
 }
@@ -34,7 +34,7 @@ impl AsRef<str> for AppTest {
     }
 }
 
-impl InvokeWebView for AppTest {
+impl Puppeteer for AppTest {
     fn shell() -> Shell {
         Shell::new().add_style("body {background-color: #1a1a1a}")
     }
@@ -47,4 +47,8 @@ impl InvokeWebView for AppTest {
 
         AppTest::PhantomData
     }
+}
+
+impl UiPaint for AppTest {
+    fn to_html(&self) -> std::borrow::Cow<str> {}
 }

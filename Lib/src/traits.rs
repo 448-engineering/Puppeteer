@@ -4,9 +4,19 @@ use std::borrow::Cow;
 
 /// This trait is used to perform UI operations like parsing the IPC messages
 /// and generating content to be displayed
-pub trait InvokeWebView {
+#[async_trait::async_trait]
+pub trait Puppeteer {
     /// Method is run to generate a [Shell].
     fn shell() -> Shell;
+
+    /// Initialize function which loads data necessary for
+    /// the app to function. This data can be use to load resources
+    /// like fonts or load user data like username from a database, etc,
+    async fn init() -> bool;
+
+    /// The splash screen loaded when an app is being initialized
+    fn splashscreen() -> &'static dyn UiPaint;
+
     /// Parse the IPC message.
     /// Make sure you handle the errors received from the proxy.
     /// These errors start with the following keywords

@@ -20,6 +20,9 @@ pub use logging::*;
 mod shell;
 pub use shell::*;
 
+mod titlebar;
+pub use titlebar::*;
+
 /// Reuse crates in the lib for better compatibility
 pub use async_executor;
 pub use async_trait;

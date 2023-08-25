@@ -13,7 +13,7 @@ use wry::{
 };
 
 /// This struct us used to build your app
-pub struct Puppeteer<T: 'static> {
+pub struct PuppeteerApp<T: 'static> {
     title: &'static str,
     /// The app environment
     pub env: AppEnvironment,
@@ -24,9 +24,9 @@ pub struct Puppeteer<T: 'static> {
     log_filter_name: &'static str,
 }
 
-impl<T> Puppeteer<T>
+impl<T> PuppeteerApp<T>
 where
-    T: 'static + crate::InvokeWebView + AsRef<str>,
+    T: 'static + crate::Puppeteer + AsRef<str> + UiPaint,
 {
     /// Initializes the Puppeteer app
     pub fn init(title: &'static str) -> PuppeteerResult<Self, T> {
@@ -50,7 +50,7 @@ where
             Logging::new(title).log("COULD NOT IDENTIFY PRIMARY MONITOR");
         }
 
-        Ok(Puppeteer {
+        Ok(PuppeteerApp {
             title,
             event_loop,
             proxy,
@@ -70,7 +70,7 @@ where
 
     /// Start the event loop
     pub async fn start(self) -> PuppeteerResult<(), T> {
-        let handler = Puppeteer::handler(self.proxy.clone(), &self.log_filter_name);
+        let handler = PuppeteerApp::handler(self.proxy.clone(), &self.log_filter_name);
 
         let devtools_enabled = if cfg!(debug_assertions) { true } else { false };
 
@@ -158,12 +158,12 @@ where
                 Ok(_) => (),
                 Err(error) => {
                     let req_parse = T::parse(&format!("{}{}", crate::ERROR_PREFIX, error));
-                    Puppeteer::proxy_error_handler(proxy.send_event(req_parse), log_filter_name);
+                    PuppeteerApp::proxy_error_handler(proxy.send_event(req_parse), log_filter_name);
                 }
             },
             _ => {
                 let req_parse = T::parse(&req);
-                Puppeteer::proxy_error_handler(proxy.send_event(req_parse), log_filter_name);
+                PuppeteerApp::proxy_error_handler(proxy.send_event(req_parse), log_filter_name);
             }
         }
     }
