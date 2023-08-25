@@ -1,4 +1,4 @@
-use crate::Shell;
+use crate::{ModifyView, Shell, WindowResize};
 use async_trait::async_trait;
 use std::borrow::Cow;
 
@@ -6,13 +6,21 @@ use std::borrow::Cow;
 /// and generating content to be displayed
 #[async_trait::async_trait]
 pub trait Puppeteer {
+    /// The app default size window. This defaults to `WindowResize::ResizePercent(90)`
+    fn window_size() -> WindowResize {
+        WindowResize::ResizePercent(90)
+    }
+
     /// Method is run to generate a [Shell].
     fn shell() -> Shell;
+
+    /// Load the root page after initialization has completed
+    fn root<'p>() -> &'p dyn UiPaint;
 
     /// Initialize function which loads data necessary for
     /// the app to function. This data can be use to load resources
     /// like fonts or load user data like username from a database, etc,
-    async fn init() -> bool;
+    async fn init<'p>() -> ModifyView<'p>;
 
     /// The splash screen loaded when an app is being initialized
     fn splashscreen() -> &'static dyn UiPaint;

@@ -1,4 +1,8 @@
-use crate::{AppEnvironment, Logging, PuppeteerResult, Shell, UiPaint};
+use std::borrow::Cow;
+
+use crate::{
+    AppEnvironment, Logging, PuppeteerError, PuppeteerResult, Shell, UiPaint, WindowResize,
+};
 use async_executor::Executor;
 use tracing::Level;
 use wry::{
@@ -21,6 +25,8 @@ pub struct PuppeteerApp<T: 'static> {
     proxy: EventLoopProxy<T>,
     window: Window,
     primary_monitor: Option<MonitorHandle>,
+    current_monitor: Option<MonitorHandle>,
+    available_monitors: Vec<MonitorHandle>,
     log_filter_name: &'static str,
 }
 
@@ -29,7 +35,7 @@ where
     T: 'static + crate::Puppeteer + AsRef<str> + UiPaint,
 {
     /// Initializes the Puppeteer app
-    pub fn init(title: &'static str) -> PuppeteerResult<Self, T> {
+    pub fn init(title: &'static str) -> PuppeteerResult<Self> {
         let event_loop = EventLoopBuilder::<T>::with_user_event().build();
         Logging::new(title).log("INITIALIZED EVENT_LOOP");
 
@@ -43,11 +49,21 @@ where
         Logging::new(title).log("INITIALIZED WINDOW");
 
         let primary_monitor = window.primary_monitor();
+        let current_monitor = window.current_monitor();
 
         if let Some(monitor_found) = primary_monitor.as_ref() {
             Logging::new(title).log(&format!("{:?}", monitor_found));
         } else {
             Logging::new(title).log("COULD NOT IDENTIFY PRIMARY MONITOR");
+        }
+
+        let mut available_monitors = Vec::<MonitorHandle>::new();
+        window
+            .available_monitors()
+            .for_each(|monitor| available_monitors.push(monitor));
+        if !available_monitors.is_empty() {
+            Logging::new(title)
+                .log(format!("LIST OF AVAILABLE MONITORS {:#?}", &available_monitors).as_str());
         }
 
         Ok(PuppeteerApp {
@@ -57,6 +73,8 @@ where
             env: AppEnvironment::init(),
             window,
             primary_monitor,
+            current_monitor,
+            available_monitors,
             log_filter_name: title,
         })
     }
@@ -69,7 +87,7 @@ where
     }
 
     /// Start the event loop
-    pub async fn start(self) -> PuppeteerResult<(), T> {
+    pub async fn start(self) -> PuppeteerResult<()> {
         let handler = PuppeteerApp::handler(self.proxy.clone(), &self.log_filter_name);
 
         let devtools_enabled = if cfg!(debug_assertions) { true } else { false };
@@ -82,19 +100,39 @@ where
                 .build()?,
         );
 
-        let primary_monitor = self.primary_monitor.as_ref().cloned();
         let init_proxy = self.proxy.clone();
 
         let executor = Executor::new();
 
-        executor.spawn(async {}).detach();
+        executor
+            .spawn(async {
+                //CREATE A STATE HERE
+            })
+            .detach();
 
         self.event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Wait;
 
             match event {
                 Event::NewEvents(StartCause::Init) => {
-                    Logging::new(&self.log_filter_name).log("Puppeteer Application Started");
+                    Logging::new(&self.log_filter_name).log("INITIALIZED SUCCESSFULLY");
+
+                    match T::window_size().get_op(webview.as_ref()) {
+                        Ok(_) => (),
+                        Err(error) => {
+                            Logging::new(&self.log_filter_name)
+                                .with_level(Level::ERROR)
+                                .log(error.to_string().as_str());
+
+                            std::process::exit(1);
+                        }
+                    }
+
+                    let html = T::root();
+
+                    let webview = get_webview_log_error(&self.log_filter_name, webview.as_ref());
+
+                    eval_script_exit_on_error(&self.log_filter_name, webview, html);
                 }
                 Event::WindowEvent {
                     event: WindowEvent::CloseRequested,
@@ -103,48 +141,10 @@ where
                     let _ = webview.take();
                     *control_flow = ControlFlow::Exit
                 }
-                Event::UserEvent(ui_event) => {
-                    let inner_size = webview.as_ref().unwrap().inner_size();
-                    let window = webview.as_ref().unwrap().window();
-
-                    let size_params =
-                        Self::window_position_calc(primary_monitor.as_ref(), inner_size);
-                    Self::set_outer_position(size_params.0, window);
-                    Self::set_inner_size(size_params.1, window);
-                }
+                Event::UserEvent(ui_event) => {}
                 _ => (),
             }
         });
-    }
-
-    fn window_position_calc(
-        primary_monitor: Option<&MonitorHandle>,
-        inner_size: PhysicalSize<u32>,
-    ) -> (PhysicalPosition<i32>, PhysicalSize<u32>) {
-        let screen_size = if let Some(some_monitor) = primary_monitor {
-            PhysicalSize {
-                width: (some_monitor.size().width as f32 * 0.9) as u32,
-                height: (some_monitor.size().height as f32 * 0.9) as u32,
-            }
-        } else {
-            PhysicalSize {
-                width: (1270f32 * 0.95) as u32, //FIXME Set window to maximized if outer position cannot be detected
-                height: (720f32 * 0.95) as u32, //FIXME Set window to maximized if outer position cannot be detected
-            }
-        };
-
-        let x = (screen_size.width as i32 - inner_size.width as i32) / 2;
-        let y = (screen_size.height as i32 - inner_size.height as i32) / 2;
-
-        (PhysicalPosition { x, y }, screen_size)
-    }
-
-    fn set_outer_position(outer_size: PhysicalPosition<i32>, window: &Window) {
-        window.set_outer_position(outer_size);
-    }
-
-    fn set_inner_size(inner_size: PhysicalSize<u32>, window: &Window) {
-        window.set_inner_size(inner_size);
     }
 
     fn handler(
@@ -177,6 +177,38 @@ where
                     .log(error.to_string().as_str());
                 std::process::exit(1);
             }
+        }
+    }
+}
+
+pub(crate) fn get_webview_log_error<'p>(
+    app_name: &'static str,
+    webview: Option<&'p WebView>,
+) -> &'p WebView {
+    if let Some(webview_exists) = webview {
+        webview_exists
+    } else {
+        Logging::new(app_name)
+            .with_level(Level::ERROR)
+            .log(PuppeteerError::WebViewDoesNotExist.to_string().as_str());
+
+        std::process::exit(1);
+    }
+}
+
+pub(crate) fn eval_script_exit_on_error(
+    app_name: &'static str,
+    webview: &WebView,
+    content: &dyn UiPaint,
+) {
+    match webview.evaluate_script(&content.to_html()) {
+        Ok(_) => (),
+        Err(error) => {
+            Logging::new(app_name)
+                .with_level(Level::ERROR)
+                .log(error.to_string().as_str());
+
+            std::process::exit(1);
         }
     }
 }

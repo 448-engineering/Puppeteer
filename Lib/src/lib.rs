@@ -23,6 +23,9 @@ pub use shell::*;
 mod titlebar;
 pub use titlebar::*;
 
+mod ui_ops;
+pub use ui_ops::*;
+
 /// Reuse crates in the lib for better compatibility
 pub use async_executor;
 pub use async_trait;
