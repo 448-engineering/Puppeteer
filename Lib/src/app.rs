@@ -1,6 +1,7 @@
-use crate::{AppEnvironment, Logging, ModifyView, PuppeteerError, PuppeteerResult, UiPaint};
-use async_executor::Executor;
-use std::{future::Future, marker::PhantomData};
+use crate::{
+    AppEnvironment, Logging, ModifyView, PuppeteerError, PuppeteerResult, UiPaint, WindowResize,
+};
+use std::{borrow::Borrow, marker::PhantomData};
 use tracing::Level;
 use wry::{
     application::{
@@ -18,7 +19,7 @@ pub struct ActiveAppEnv {
     /// The name of the app.
     /// This name appears in the Window Title if decorations are enabled
     /// and in the logs.
-    pub app_name: &'static str,
+    pub app_name: &'static str, //FIXME AD ORG NAME
     /// The [AppEnvironment]
     pub env: AppEnvironment,
     /// The primary monitor as detected by the window
@@ -42,8 +43,13 @@ pub struct PuppeteerApp<T> {
 
 impl<T> PuppeteerApp<T>
 where
-    T: crate::Puppeteer + 'static,
+    T: crate::Puppeteer + 'static + Send + Sync,
 {
+    /// Get the window
+    pub fn get_window(&self) -> &Window {
+        self.window.borrow()
+    }
+
     /// Initializes the Puppeteer app
     pub fn init(app_name: &'static str) -> PuppeteerResult<Self> {
         let event_loop = EventLoopBuilder::<ModifyView>::with_user_event().build();
@@ -101,36 +107,39 @@ where
 
         let devtools_enabled = if cfg!(debug_assertions) { true } else { false };
 
-        let mut webview = Some(
-            WebViewBuilder::new(self.window)?
-                .with_html(T::shell().to_html())?
-                .with_devtools(devtools_enabled)
-                .with_ipc_handler(handler)
-                .build()?,
-        );
+        let webview = WebViewBuilder::new(self.window)?
+            .with_html(T::shell().to_html())?
+            .with_devtools(devtools_enabled)
+            .with_ipc_handler(handler)
+            .build()?;
+
+        let mut webview = Some(webview);
+
+        WindowResize::ResizePercent(50)
+            .get_op(webview.as_ref())
+            .unwrap();
 
         let app_name = self.env.app_name.clone();
 
         let init_proxy = self.proxy.clone();
 
-        let executor = Executor::new();
+        let mut size_init = false;
 
-        executor
-            .spawn(async move {
-                let init = T::init().await;
+        smol::spawn(async move {
+            let init = T::init().await;
 
-                PuppeteerApp::<T>::proxy_error_handler(init_proxy.send_event(init), app_name)
-            })
-            .detach();
+            PuppeteerApp::<T>::proxy_error_handler(init_proxy.send_event(init), app_name)
+        })
+        .detach();
 
         self.event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Wait;
 
             match event {
                 Event::NewEvents(StartCause::Init) => {
-                    Logging::new(&app_name).log("INITIALIZED SUCCESSFULLY");
+                    Logging::new(&app_name).log("LOADED SPLASHSCREEN");
 
-                    match T::window_size().get_op(webview.as_ref()) {
+                    match T::splash_window_size().get_op(webview.as_ref()) {
                         Ok(_) => (),
                         Err(error) => {
                             Logging::new(&app_name)
@@ -141,11 +150,11 @@ where
                         }
                     }
 
-                    let html = T::splashscreen();
+                    let view_data = T::splashscreen();
 
                     let webview = Self::get_webview_log_error(&app_name, webview.as_ref());
 
-                    Self::eval_script_exit_on_error(&app_name, webview, html);
+                    Self::eval_script_exit_on_error(&app_name, webview, &view_data.to_html());
                 }
                 Event::WindowEvent {
                     event: WindowEvent::CloseRequested,
@@ -156,6 +165,21 @@ where
                 }
                 Event::UserEvent(ui_event) => {
                     let webview = Self::get_webview_log_error(&app_name, webview.as_ref());
+
+                    if !size_init {
+                        match T::window_size().get_op(Some(webview)) {
+                            Ok(_) => (),
+                            Err(error) => {
+                                Logging::new(&app_name)
+                                    .with_level(Level::ERROR)
+                                    .log(error.to_string().as_str());
+
+                                std::process::exit(1);
+                            }
+                        }
+
+                        size_init = false;
+                    }
 
                     Self::eval_script_exit_on_error(&app_name, webview, &ui_event);
                 }
@@ -176,31 +200,33 @@ where
                 Err(error) => {
                     let error = T::error_handler(error);
 
-                    async_executor::Executor::new()
-                        .spawn(async {
-                            let outcome = error.await;
-                            PuppeteerApp::<T>::proxy_error_handler(
-                                proxy.send_event(outcome),
-                                app_env.app_name,
-                            );
-                        })
-                        .detach();
+                    let local_app_env = app_env.clone();
+                    let local_proxy = proxy.clone();
+
+                    smol::spawn(async move {
+                        let outcome = error.await;
+                        PuppeteerApp::<T>::proxy_error_handler(
+                            local_proxy.send_event(outcome),
+                            local_app_env.app_name,
+                        );
+                    })
+                    .detach();
                 }
             },
             _ => {
                 let mut req_parse = T::parse(&req);
-                let prepare_outcome: std::pin::Pin<Box<dyn Future<Output = ModifyView> + Send>> =
-                    req_parse.event_handler(&app_env, window);
 
-                async_executor::Executor::new()
-                    .spawn(async {
-                        let outcome = prepare_outcome.await;
-                        PuppeteerApp::<T>::proxy_error_handler(
-                            proxy.send_event(outcome),
-                            app_env.app_name,
-                        );
-                    })
-                    .detach();
+                let local_app_env = app_env.clone();
+                let local_proxy = proxy.clone();
+
+                smol::spawn(async move {
+                    let outcome = req_parse.event_handler(local_app_env).await;
+                    PuppeteerApp::<T>::proxy_error_handler(
+                        local_proxy.send_event(outcome),
+                        app_env.app_name,
+                    );
+                })
+                .detach();
             }
         }
     }

@@ -26,11 +26,13 @@ pub use titlebar::*;
 mod ui_ops;
 pub use ui_ops::*;
 
-pub use arrayvec;
 /// Reuse crates in the lib for better compatibility
-pub use async_executor;
+///
+//
+pub use arrayvec;
 pub use async_trait;
 pub use futures_lite;
+pub use smol;
 pub use thiserror;
 pub use tracing;
 pub use wry;

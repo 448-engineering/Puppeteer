@@ -1,6 +1,8 @@
 use puppeteer::{
+    async_trait::{self},
     tracing::{self, Level},
-    InvokeWebView, Puppeteer, PuppeteerApp, Shell, UiPaint,
+    wry::application::window::Window,
+    ActiveAppEnv, ModifyView, Puppeteer, PuppeteerApp, Shell,
 };
 use tracing_subscriber::FmtSubscriber;
 
@@ -14,9 +16,13 @@ fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let mut app = PuppeteerApp::<AppTest>::init("Puppeteer Test App").unwrap();
-
-    smol::block_on(async { app.start().await.unwrap() })
+    smol::block_on(async {
+        PuppeteerApp::<AppTest>::init("Puppeteer Test App")
+            .unwrap()
+            .start()
+            .await
+            .unwrap()
+    })
 }
 
 #[derive(Debug)]
@@ -34,9 +40,20 @@ impl AsRef<str> for AppTest {
     }
 }
 
+#[async_trait::async_trait]
 impl Puppeteer for AppTest {
     fn shell() -> Shell {
-        Shell::new().add_style("body {background-color: #1a1a1a}")
+        Shell::new().add_style("body {background-color: #1a1a1a; color: #FFFFFF}")
+    }
+
+    fn splashscreen() -> ModifyView {
+        ModifyView::ReplaceApp("SPLASHSCREEN".into())
+    }
+
+    async fn init() -> ModifyView {
+        smol::Timer::after(std::time::Duration::from_secs(3)).await;
+
+        ModifyView::ReplaceApp("INITIALIZED".into())
     }
 
     fn parse(message: &str) -> Self {
@@ -47,8 +64,14 @@ impl Puppeteer for AppTest {
 
         AppTest::PhantomData
     }
-}
 
-impl UiPaint for AppTest {
-    fn to_html(&self) -> std::borrow::Cow<str> {}
+    async fn event_handler(&mut self, app_env: ActiveAppEnv) -> ModifyView {
+        println!("ACTIVE_ENV: {:?}", app_env);
+
+        ModifyView::ReplaceApp("EVENT RECV".into())
+    }
+
+    async fn error_handler(error: impl std::error::Error + Send) -> ModifyView {
+        ModifyView::ReplaceApp("ERROR RECV".into())
+    }
 }

@@ -2,8 +2,6 @@ use tracing::Level;
 
 /// Name that can be used to quickly identify all filters of the running app in logs.
 pub const LOGGING_SYMBOL: &str = "» ";
-/// This is the String used to indicate an error has been sent via the `EventLoopProxy`
-pub const ERROR_PREFIX: &str = "PuppeteerError» ";
 
 /// Custom logging handler for Puppeteer apps.
 /// Text filtering can be done by searching for `[app_title]»`

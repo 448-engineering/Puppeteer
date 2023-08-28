@@ -19,9 +19,15 @@ pub enum WindowResize {
     /// Resize width and height based on the `X` and `Y` position of top most monitor
     /// if the current desktop has multiple monitors
     ResizeXY((i32, i32)),
-    /// Calculate the width and height to resize based on a certain percentage of the current monitor
-    /// Anything past 100 is reset to 100
+    /// Resize the window based on percentage of the current monitor
     ResizePercent(u8),
+    /// Resize the window and center it depending on current monitor
+    ResizeAndCenter {
+        /// The x axis
+        width: u32,
+        /// The Y axis
+        height: u32,
+    },
 }
 
 impl WindowResize {
@@ -83,6 +89,26 @@ impl WindowResize {
                 window.set_outer_position::<PhysicalPosition<i32>>(PhysicalPosition { x, y });
 
                 window.set_inner_size::<PhysicalSize<u32>>(screen_size);
+            }
+            Self::ResizeAndCenter { width, height } => {
+                let screen_size = if let Some(some_monitor) = window.current_monitor() {
+                    PhysicalSize {
+                        width: (some_monitor.size().width as f32 * 0.9) as u32,
+                        height: (some_monitor.size().height as f32 * 0.9) as u32,
+                    }
+                } else {
+                    return Err(PuppeteerError::UnableToDetectCurrentMonitor);
+                };
+
+                let x = (screen_size.width as f32 - inner_size.width as f32) / 2f32;
+                let y = (screen_size.height as f32 - inner_size.height as f32) / 2f32;
+
+                window.set_outer_position::<PhysicalPosition<f32>>(PhysicalPosition { x, y });
+
+                window.set_inner_size::<PhysicalSize<u32>>(PhysicalSize {
+                    width: *width,
+                    height: *height,
+                });
             }
         }
 

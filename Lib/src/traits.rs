@@ -1,7 +1,6 @@
 use crate::{ActiveAppEnv, ModifyView, Shell, WindowResize};
 use async_trait::async_trait;
 use std::borrow::Cow;
-use wry::application::window::Window;
 
 /// This trait is used to perform UI operations like parsing the IPC messages
 /// and generating content to be displayed
@@ -10,6 +9,14 @@ pub trait Puppeteer {
     /// The app default size window. This defaults to `WindowResize::ResizePercent(90)`
     fn window_size() -> WindowResize {
         WindowResize::ResizePercent(90)
+    }
+
+    /// The app default size window. This defaults to `WindowResize::ResizePercent(90)`
+    fn splash_window_size() -> WindowResize {
+        WindowResize::ResizeAndCenter {
+            width: 1000,
+            height: 500,
+        }
     }
 
     /// Method is run to generate a [Shell].
@@ -23,29 +30,18 @@ pub trait Puppeteer {
     async fn init() -> ModifyView;
 
     /// The splash screen loaded when an app is being initialized
-    fn splashscreen() -> &'static dyn UiPaint;
+    fn splashscreen() -> ModifyView;
 
     /// Parse the IPC message.
-    /// Make sure you handle the errors received from the proxy.
-    /// These errors start with the following keywords
-    /// #### Example Error Handling
-    /// ```rust
-    /// // This code handles the error message abbreviated using `PuppeteerError»`
-    ///
-    /// if message.starts_with("PuppeteerError»") {
-    /// // Handle this error into `Self`
-    ///     panic!("Encountered error: {}", message)
-    /// }
-    ///```
     fn parse(message: &str) -> Self;
 
     /// After parsing the IPC message using the above `Puppeteer::parse()` method
     /// this method is called to perform updates to the UI
-    async fn event_handler(&mut self, app_env: &ActiveAppEnv, window: &Window) -> ModifyView;
+    async fn event_handler(&mut self, app_env: ActiveAppEnv) -> ModifyView;
 
     /// This is used to handle errors. It is async so that I/O can be used like to log to a file.
     /// It returns a [ModifyView] which can display an error message to the user
-    async fn error_handler(error: impl std::error::Error) -> ModifyView;
+    async fn error_handler(error: impl std::error::Error + Send) -> ModifyView;
 }
 
 /// Trait that ensures a type can be converted to code that can be rendered into current view
@@ -56,13 +52,30 @@ pub trait UiPaint {
         ()
     }
 
-    /// For an event is handled using HTML format `window.ipc.postMessage('EVENT_STRING_NAME')` .
-    /// Alternatively use the `to_html_event()` function to simplify this
+    /// Convert to HTML format for use in HTML Web based renderer
     fn to_html(&self) -> Cow<str>;
 }
 
 impl core::fmt::Debug for dyn UiPaint {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "UiPaint")
+    }
+}
+
+impl UiPaint for &String {
+    fn to_html(&self) -> Cow<str> {
+        Cow::Borrowed("") + Cow::Owned(self.to_string())
+    }
+}
+
+impl UiPaint for Cow<'_, str> {
+    fn to_html(&self) -> Cow<str> {
+        self.clone()
+    }
+}
+
+impl UiPaint for &str {
+    fn to_html(&self) -> Cow<str> {
+        Cow::Borrowed(self)
     }
 }
