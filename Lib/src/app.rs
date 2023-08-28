@@ -32,7 +32,7 @@ pub struct PuppeteerApp<T: 'static> {
 
 impl<T> PuppeteerApp<T>
 where
-    T: 'static + crate::Puppeteer + AsRef<str> + UiPaint,
+    T: 'static + crate::Puppeteer + AsRef<str> + UiPaint + Send,
 {
     /// Initializes the Puppeteer app
     pub fn init(title: &'static str) -> PuppeteerResult<Self> {
@@ -107,6 +107,8 @@ where
         executor
             .spawn(async {
                 let init = T::init().await;
+
+                PuppeteerApp::proxy_error_handler(init_proxy.send_event(init), self.log_filter_name)
             })
             .detach();
 

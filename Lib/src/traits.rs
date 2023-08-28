@@ -20,7 +20,7 @@ pub trait Puppeteer {
     /// Initialize function which loads data necessary for
     /// the app to function. This data can be use to load resources
     /// like fonts or load user data like username from a database, etc,
-    async fn init<'p>() -> ModifyView<'p>;
+    async fn init<'p>() -> Self;
 
     /// The splash screen loaded when an app is being initialized
     fn splashscreen() -> &'static dyn UiPaint;
