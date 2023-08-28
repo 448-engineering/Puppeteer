@@ -1,6 +1,6 @@
 /// The environment the app is running on. This includes the Operating System and other supported
 /// environment variables
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct AppEnvironment {
     /// The type of operating system the app is running on
     pub os: OsType,

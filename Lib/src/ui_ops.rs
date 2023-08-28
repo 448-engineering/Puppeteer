@@ -92,26 +92,26 @@ impl WindowResize {
 
 /// Used to modify the view which can be a WebView
 #[derive(Debug)]
-pub enum ModifyView<'p> {
+pub enum ModifyView {
     /// Replaces content in the app using the provided ID
-    ReplaceApp(Cow<'p, str>),
+    ReplaceApp(Cow<'static, str>),
     /// Replaces the node with the specified ID
     ReplaceNodeWithId {
         /// The `id` of the node being replaced
-        id: &'p str,
+        id: &'static str,
         /// The `content to replace the content in target node
-        content: Cow<'p, str>,
+        content: Cow<'static, str>,
     },
 }
 
-impl<'p> ModifyView<'p> {
+impl ModifyView {
     /// Replace the nodes in the body of the app leaving the [Shell] intact
-    pub fn replace_app(content: &'p impl UiPaint) -> Self {
-        ModifyView::ReplaceApp(content.to_html().clone())
+    pub fn replace_app(content: &'static dyn UiPaint) -> Self {
+        ModifyView::ReplaceApp(content.to_html())
     }
 
     /// Replace the node with the specified ID
-    pub fn replace_with_id(id: &'p str, content: &'p impl UiPaint) -> Self {
+    pub fn replace_with_id(id: &'static str, content: &'static dyn UiPaint) -> Self {
         ModifyView::ReplaceNodeWithId {
             id,
             content: content.to_html(),
@@ -119,7 +119,7 @@ impl<'p> ModifyView<'p> {
     }
 }
 
-impl<'p> UiPaint for ModifyView<'p> {
+impl UiPaint for ModifyView {
     fn to_html(&self) -> Cow<str> {
         match self {
             Self::ReplaceApp(content) => {

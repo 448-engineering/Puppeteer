@@ -1,6 +1,7 @@
-use crate::{ModifyView, Shell, WindowResize};
+use crate::{ActiveAppEnv, ModifyView, Shell, WindowResize};
 use async_trait::async_trait;
 use std::borrow::Cow;
+use wry::application::window::Window;
 
 /// This trait is used to perform UI operations like parsing the IPC messages
 /// and generating content to be displayed
@@ -14,13 +15,12 @@ pub trait Puppeteer {
     /// Method is run to generate a [Shell].
     fn shell() -> Shell;
 
-    /// Load the root page after initialization has completed
-    fn root<'p>() -> &'p dyn UiPaint;
-
     /// Initialize function which loads data necessary for
     /// the app to function. This data can be use to load resources
-    /// like fonts or load user data like username from a database, etc,
-    async fn init<'p>() -> Self;
+    /// like fonts or load user data like username from a database, etc.
+    /// Load the root page after initialization has completed
+
+    async fn init() -> ModifyView;
 
     /// The splash screen loaded when an app is being initialized
     fn splashscreen() -> &'static dyn UiPaint;
@@ -38,6 +38,14 @@ pub trait Puppeteer {
     /// }
     ///```
     fn parse(message: &str) -> Self;
+
+    /// After parsing the IPC message using the above `Puppeteer::parse()` method
+    /// this method is called to perform updates to the UI
+    async fn event_handler(&mut self, app_env: &ActiveAppEnv, window: &Window) -> ModifyView;
+
+    /// This is used to handle errors. It is async so that I/O can be used like to log to a file.
+    /// It returns a [ModifyView] which can display an error message to the user
+    async fn error_handler(error: impl std::error::Error) -> ModifyView;
 }
 
 /// Trait that ensures a type can be converted to code that can be rendered into current view
