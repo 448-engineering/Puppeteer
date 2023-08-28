@@ -106,7 +106,7 @@ where
 
         executor
             .spawn(async {
-                //CREATE A STATE HERE
+                let init = T::init().await;
             })
             .detach();
 
@@ -128,7 +128,7 @@ where
                         }
                     }
 
-                    let html = T::root();
+                    let html = T::splashscreen();
 
                     let webview = get_webview_log_error(&self.log_filter_name, webview.as_ref());
 
