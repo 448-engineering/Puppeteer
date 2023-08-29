@@ -1,12 +1,16 @@
 use crate::{
     AppEnvironment, Logging, ModifyView, PuppeteerError, PuppeteerResult, UiPaint, WindowResize,
 };
-use std::{borrow::Borrow, marker::PhantomData};
+use std::marker::PhantomData;
 use tracing::Level;
 use wry::{
     application::{
+        dpi::PhysicalSize,
         event::{Event, StartCause, WindowEvent},
-        event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopClosed, EventLoopProxy},
+        event_loop::{
+            ControlFlow, EventLoop, EventLoopBuilder, EventLoopClosed, EventLoopProxy,
+            EventLoopWindowTarget,
+        },
         monitor::MonitorHandle,
         window::{Window, WindowBuilder},
     },
@@ -37,7 +41,6 @@ pub struct PuppeteerApp<T> {
     pub env: ActiveAppEnv,
     event_loop: EventLoop<ModifyView>,
     proxy: EventLoopProxy<ModifyView>,
-    window: Window,
     phantom: PhantomData<T>,
 }
 
@@ -45,11 +48,6 @@ impl<T> PuppeteerApp<T>
 where
     T: crate::Puppeteer + 'static + Send + Sync,
 {
-    /// Get the window
-    pub fn get_window(&self) -> &Window {
-        self.window.borrow()
-    }
-
     /// Initializes the Puppeteer app
     pub fn init(app_name: &'static str) -> PuppeteerResult<Self> {
         let event_loop = EventLoopBuilder::<ModifyView>::with_user_event().build();
@@ -58,43 +56,16 @@ where
         let proxy = event_loop.create_proxy();
         Logging::new(app_name).log("INITIALIZED EVENT_LOOP PROXY");
 
-        let window = WindowBuilder::new()
-            .with_title(app_name)
-            .with_decorations(false)
-            .build(&event_loop)?;
-        Logging::new(app_name).log("INITIALIZED WINDOW");
-
-        let primary_monitor = window.primary_monitor();
-        let current_monitor = window.current_monitor();
-
-        if let Some(monitor_found) = primary_monitor.as_ref() {
-            Logging::new(app_name).log(&format!("{:?}", monitor_found));
-        } else {
-            Logging::new(app_name).log("COULD NOT IDENTIFY PRIMARY MONITOR");
-        }
-
-        let mut available_monitors = Vec::<MonitorHandle>::new();
-        window
-            .available_monitors()
-            .for_each(|monitor| available_monitors.push(monitor));
-        if !available_monitors.is_empty() {
-            Logging::new(app_name)
-                .log(format!("LIST OF AVAILABLE MONITORS {:#?}", &available_monitors).as_str());
-        }
-
-        let env = ActiveAppEnv {
-            app_name,
-            env: AppEnvironment::init(),
-            primary_monitor,
-            current_monitor,
-            available_monitors,
-        };
-
         Ok(PuppeteerApp {
             event_loop,
             proxy,
-            env,
-            window,
+            env: ActiveAppEnv {
+                app_name,
+                env: AppEnvironment::init(),
+                primary_monitor: Option::default(),
+                current_monitor: Option::default(),
+                available_monitors: Vec::default(),
+            },
             phantom: PhantomData::default(),
         })
     }
@@ -102,47 +73,39 @@ where
     /// Start the event loop.
     /// This method is async runtime agnostic and can be used with any
     /// Rust async runtime that respects `std::future::Future`
-    pub async fn start(self) -> PuppeteerResult<()> {
-        let handler = PuppeteerApp::<T>::handler(self.proxy.clone(), self.env.clone());
+    pub async fn start(mut self) -> PuppeteerResult<()> {
+        let webview =
+            PuppeteerApp::<T>::create_webview(&self.event_loop, self.proxy.clone(), &mut self.env)?;
+        let splash_html = T::splashscreen();
 
-        let devtools_enabled = if cfg!(debug_assertions) { true } else { false };
-
-        let webview = WebViewBuilder::new(self.window)?
-            .with_html(T::shell().to_html())?
-            .with_devtools(devtools_enabled)
-            .with_ipc_handler(handler)
-            .build()?;
+        Self::eval_script_exit_on_error(&self.env.app_name, &webview, &splash_html.to_html());
 
         let mut webview = Some(webview);
 
-        WindowResize::ResizePercent(50)
-            .get_op(webview.as_ref())
-            .unwrap();
-
-        let app_name = self.env.app_name.clone();
+        let mut app_webview = false;
 
         let init_proxy = self.proxy.clone();
-
-        let mut size_init = false;
 
         smol::spawn(async move {
             let init = T::init().await;
 
-            PuppeteerApp::<T>::proxy_error_handler(init_proxy.send_event(init), app_name)
+            PuppeteerApp::<T>::proxy_error_handler(init_proxy.send_event(init), &self.env.app_name)
         })
         .detach();
 
-        self.event_loop.run(move |event, _, control_flow| {
+        self.event_loop.run(move |event, event_loop, control_flow| {
             *control_flow = ControlFlow::Wait;
 
             match event {
                 Event::NewEvents(StartCause::Init) => {
-                    Logging::new(&app_name).log("LOADED SPLASHSCREEN");
+                    Logging::new(&self.env.app_name).log("LOADED SPLASHSCREEN");
 
-                    match T::splash_window_size().get_op(webview.as_ref()) {
+                    match WindowResize::ResizePercent(T::splash_window_size())
+                        .get_op(webview.as_ref())
+                    {
                         Ok(_) => (),
                         Err(error) => {
-                            Logging::new(&app_name)
+                            Logging::new(&self.env.app_name)
                                 .with_level(Level::ERROR)
                                 .log(error.to_string().as_str());
 
@@ -152,25 +115,36 @@ where
 
                     let view_data = T::splashscreen();
 
-                    let webview = Self::get_webview_log_error(&app_name, webview.as_ref());
+                    let webview = Self::get_webview_log_error(&self.env.app_name, webview.as_ref());
 
-                    Self::eval_script_exit_on_error(&app_name, webview, &view_data.to_html());
+                    Self::eval_script_exit_on_error(
+                        &self.env.app_name,
+                        webview,
+                        &view_data.to_html(),
+                    );
                 }
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => {
-                    let _ = webview.take();
-                    *control_flow = ControlFlow::Exit
+                Event::WindowEvent { event, .. } if event == WindowEvent::CloseRequested => {
+                    webview.take();
+                    *control_flow = ControlFlow::Exit;
                 }
-                Event::UserEvent(ui_event) => {
-                    let webview = Self::get_webview_log_error(&app_name, webview.as_ref());
+                Event::UserEvent(user_event) => {
+                    if !app_webview {
+                        let new_window = PuppeteerApp::<T>::create_webview(
+                            &event_loop,
+                            self.proxy.clone(),
+                            &mut self.env,
+                        )
+                        .unwrap();
+                        webview.take();
+                        webview.replace(new_window);
 
-                    if !size_init {
-                        match T::window_size().get_op(Some(webview)) {
+                        app_webview = true;
+
+                        match WindowResize::ResizePercent(T::window_size()).get_op(webview.as_ref())
+                        {
                             Ok(_) => (),
                             Err(error) => {
-                                Logging::new(&app_name)
+                                Logging::new(&self.env.app_name)
                                     .with_level(Level::ERROR)
                                     .log(error.to_string().as_str());
 
@@ -178,14 +152,67 @@ where
                             }
                         }
 
-                        size_init = false;
-                    }
+                        match WindowResize::Center.get_op(webview.as_ref()) {
+                            Ok(_) => (),
+                            Err(error) => {
+                                Logging::new(&self.env.app_name)
+                                    .with_level(Level::ERROR)
+                                    .log(error.to_string().as_str());
 
-                    Self::eval_script_exit_on_error(&app_name, webview, &ui_event);
+                                std::process::exit(1);
+                            }
+                        }
+                    }
                 }
                 _ => (),
             }
         });
+    }
+    fn create_webview(
+        event_loop: &EventLoopWindowTarget<ModifyView>,
+        proxy: EventLoopProxy<ModifyView>,
+        app_env: &mut ActiveAppEnv,
+    ) -> PuppeteerResult<WebView> {
+        let window = WindowBuilder::new()
+            .with_title(app_env.app_name)
+            .with_decorations(false)
+            .build(&event_loop)?;
+        Logging::new(app_env.app_name).log("INITIALIZED WINDOW");
+
+        let primary_monitor = window.primary_monitor();
+        let current_monitor = window.current_monitor();
+
+        if let Some(monitor_found) = primary_monitor.as_ref() {
+            window.set_inner_size(PhysicalSize::new(
+                monitor_found.size().width as f32 * T::window_size(),
+                monitor_found.size().height as f32 * T::window_size(),
+            ));
+
+            Logging::new(app_env.app_name).log(&format!("{:?}", monitor_found));
+        } else {
+            Logging::new(app_env.app_name).log("COULD NOT IDENTIFY PRIMARY MONITOR");
+        }
+
+        window.available_monitors().for_each(|monitor| {
+            Logging::new(app_env.app_name)
+                .log(format!("FOUND MONITOR -  {:#?}", &monitor).as_str());
+            app_env.available_monitors.push(monitor);
+        });
+
+        app_env.primary_monitor = primary_monitor;
+        app_env.current_monitor = current_monitor;
+
+        let handler = PuppeteerApp::<T>::handler(proxy, app_env.clone());
+
+        let devtools_enabled = if cfg!(debug_assertions) { true } else { false };
+
+        let webview = WebViewBuilder::new(window)?
+            .with_html(T::shell().to_html())?
+            .with_devtools(devtools_enabled)
+            .with_ipc_handler(handler)
+            .build()?;
+
+        Ok(webview)
     }
 
     fn handler(

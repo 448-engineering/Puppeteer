@@ -1,7 +1,6 @@
 use puppeteer::{
     async_trait::{self},
     tracing::{self, Level},
-    wry::application::window::Window,
     ActiveAppEnv, ModifyView, Puppeteer, PuppeteerApp, Shell,
 };
 use tracing_subscriber::FmtSubscriber;
@@ -71,7 +70,7 @@ impl Puppeteer for AppTest {
         ModifyView::ReplaceApp("EVENT RECV".into())
     }
 
-    async fn error_handler(error: impl std::error::Error + Send) -> ModifyView {
+    async fn error_handler(_error: impl std::error::Error + Send) -> ModifyView {
         ModifyView::ReplaceApp("ERROR RECV".into())
     }
 }

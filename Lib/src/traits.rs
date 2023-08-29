@@ -1,4 +1,4 @@
-use crate::{ActiveAppEnv, ModifyView, Shell, WindowResize};
+use crate::{ActiveAppEnv, ModifyView, Shell};
 use async_trait::async_trait;
 use std::borrow::Cow;
 
@@ -7,16 +7,12 @@ use std::borrow::Cow;
 #[async_trait::async_trait]
 pub trait Puppeteer {
     /// The app default size window. This defaults to `WindowResize::ResizePercent(90)`
-    fn window_size() -> WindowResize {
-        WindowResize::ResizePercent(90)
+    fn window_size() -> f32 {
+        90f32 / 100f32
     }
-
     /// The app default size window. This defaults to `WindowResize::ResizePercent(90)`
-    fn splash_window_size() -> WindowResize {
-        WindowResize::ResizeAndCenter {
-            width: 1000,
-            height: 500,
-        }
+    fn splash_window_size() -> f32 {
+        50f32 / 100f32
     }
 
     /// Method is run to generate a [Shell].

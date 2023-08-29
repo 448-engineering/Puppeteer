@@ -6,7 +6,7 @@ use wry::{
 };
 
 /// An window resize operation
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum WindowResize {
     /// Resize to fullscreen
     FullScreen,
@@ -14,27 +14,17 @@ pub enum WindowResize {
     Maximize,
     /// Minimize the window if it is not already minized
     Minimize,
-    /// Resize to a certain width and height
-    ResizeWidthHeight((u32, u32)),
-    /// Resize width and height based on the `X` and `Y` position of top most monitor
-    /// if the current desktop has multiple monitors
-    ResizeXY((i32, i32)),
+    /// Center the window
+    Center,
     /// Resize the window based on percentage of the current monitor
-    ResizePercent(u8),
-    /// Resize the window and center it depending on current monitor
-    ResizeAndCenter {
-        /// The x axis
-        width: u32,
-        /// The Y axis
-        height: u32,
-    },
+    ResizePercent(f32),
 }
 
 impl WindowResize {
     /// Match the operation to it's resize values and perform resizing
     pub fn get_op(&self, webview: Option<&WebView>) -> PuppeteerResult<()> {
-        let (window, inner_size) = if let Some(webview_exists) = webview.as_ref() {
-            (webview_exists.window(), webview_exists.inner_size())
+        let window = if let Some(webview_exists) = webview.as_ref() {
+            webview_exists.window()
         } else {
             return Err(PuppeteerError::WebViewDoesNotExist);
         };
@@ -57,58 +47,36 @@ impl WindowResize {
                     window.set_minimized(true)
                 }
             }
-            Self::ResizeWidthHeight((width, height)) => {
-                window.set_inner_size::<PhysicalSize<u32>>(PhysicalSize {
-                    width: *width,
-                    height: *height,
-                })
+            Self::Center => {
+                if let Some(monitor) = window.current_monitor() {
+                    let screen_size = monitor.size();
+                    let window_size = window.outer_size();
+
+                    window.set_outer_position(PhysicalPosition {
+                        x: screen_size.width.saturating_sub(window_size.width) as f64 / 2.
+                            + monitor.position().x as f64,
+                        y: screen_size.height.saturating_sub(window_size.height) as f64 / 2.
+                            + monitor.position().y as f64,
+                    });
+                }
             }
-            Self::ResizeXY((x, y)) => window
-                .set_outer_position::<PhysicalPosition<i32>>(PhysicalPosition { x: *x, y: *y }),
             Self::ResizePercent(inner_value) => {
-                let value = if inner_value > &100 {
-                    100u8
+                let value = if inner_value > &1f32 {
+                    1f32
                 } else {
                     *inner_value
                 };
 
-                let scale_value = value as f32 / 100f32;
+                let _scale_value = value as f32 / 100f32; //FIXME Use this scaling factor
 
-                let screen_size = if let Some(some_monitor) = window.current_monitor() {
-                    PhysicalSize {
-                        width: (some_monitor.size().width as f32 * scale_value) as u32,
-                        height: (some_monitor.size().height as f32 * scale_value) as u32,
-                    }
-                } else {
-                    return Err(PuppeteerError::UnableToDetectCurrentMonitor);
-                };
+                if let Some(monitor) = window.current_monitor() {
+                    let screen_size = monitor.size();
 
-                let x = (screen_size.width as i32 - inner_size.width as i32) / 2;
-                let y = (screen_size.height as i32 - inner_size.height as i32) / 2;
-
-                window.set_outer_position::<PhysicalPosition<i32>>(PhysicalPosition { x, y });
-
-                window.set_inner_size::<PhysicalSize<u32>>(screen_size);
-            }
-            Self::ResizeAndCenter { width, height } => {
-                let screen_size = if let Some(some_monitor) = window.current_monitor() {
-                    PhysicalSize {
-                        width: (some_monitor.size().width as f32 * 0.9) as u32,
-                        height: (some_monitor.size().height as f32 * 0.9) as u32,
-                    }
-                } else {
-                    return Err(PuppeteerError::UnableToDetectCurrentMonitor);
-                };
-
-                let x = (screen_size.width as f32 - inner_size.width as f32) / 2f32;
-                let y = (screen_size.height as f32 - inner_size.height as f32) / 2f32;
-
-                window.set_outer_position::<PhysicalPosition<f32>>(PhysicalPosition { x, y });
-
-                window.set_inner_size::<PhysicalSize<u32>>(PhysicalSize {
-                    width: *width,
-                    height: *height,
-                });
+                    window.set_inner_size(PhysicalSize {
+                        width: screen_size.width as f32 * value,
+                        height: screen_size.height as f32 * value,
+                    });
+                }
             }
         }
 
