@@ -93,54 +93,16 @@ where
         })
         .detach();
 
-        self.event_loop.run(move |event, event_loop, control_flow| {
-            *control_flow = ControlFlow::Wait;
+        self.event_loop
+            .run(move |event, _event_loop, control_flow| {
+                *control_flow = ControlFlow::Wait;
 
-            match event {
-                Event::NewEvents(StartCause::Init) => {
-                    Logging::new(&self.env.app_name).log("LOADED SPLASHSCREEN");
+                match event {
+                    Event::NewEvents(StartCause::Init) => {
+                        Logging::new(&self.env.app_name).log("LOADED SPLASHSCREEN");
 
-                    match WindowResize::ResizePercent(T::splash_window_size())
-                        .get_op(webview.as_ref())
-                    {
-                        Ok(_) => (),
-                        Err(error) => {
-                            Logging::new(&self.env.app_name)
-                                .with_level(Level::ERROR)
-                                .log(error.to_string().as_str());
-
-                            std::process::exit(1);
-                        }
-                    }
-
-                    let view_data = T::splashscreen();
-
-                    let webview = Self::get_webview_log_error(&self.env.app_name, webview.as_ref());
-
-                    Self::eval_script_exit_on_error(
-                        &self.env.app_name,
-                        webview,
-                        &view_data.to_html(),
-                    );
-                }
-                Event::WindowEvent { event, .. } if event == WindowEvent::CloseRequested => {
-                    webview.take();
-                    *control_flow = ControlFlow::Exit;
-                }
-                Event::UserEvent(user_event) => {
-                    if !app_webview {
-                        let new_window = PuppeteerApp::<T>::create_webview(
-                            &event_loop,
-                            self.proxy.clone(),
-                            &mut self.env,
-                        )
-                        .unwrap();
-                        webview.take();
-                        webview.replace(new_window);
-
-                        app_webview = true;
-
-                        match WindowResize::ResizePercent(T::window_size()).get_op(webview.as_ref())
+                        match WindowResize::ResizePercent(T::splash_window_size())
+                            .get_op(webview.as_ref())
                         {
                             Ok(_) => (),
                             Err(error) => {
@@ -152,21 +114,74 @@ where
                             }
                         }
 
-                        match WindowResize::Center.get_op(webview.as_ref()) {
-                            Ok(_) => (),
-                            Err(error) => {
-                                Logging::new(&self.env.app_name)
-                                    .with_level(Level::ERROR)
-                                    .log(error.to_string().as_str());
+                        let view_data = T::splashscreen();
 
-                                std::process::exit(1);
+                        let webview =
+                            Self::get_webview_log_error(&self.env.app_name, webview.as_ref());
+
+                        Self::eval_script_exit_on_error(
+                            &self.env.app_name,
+                            webview,
+                            &view_data.to_html(),
+                        );
+                    }
+                    Event::WindowEvent { event, .. } if event == WindowEvent::CloseRequested => {
+                        webview.take();
+                        *control_flow = ControlFlow::Exit;
+                    }
+                    Event::UserEvent(update_view) => {
+                        if update_view == ModifyView::CloseWindow {
+                            webview.take();
+                            Logging::new(self.env.app_name).log("REQUESTED TO CLOSE WINDOW");
+
+                            *control_flow = ControlFlow::Exit;
+
+                            std::process::exit(0)
+                        }
+
+                        if !app_webview {
+                            app_webview = true;
+                            Logging::new(self.env.app_name).log("INITIALIZED ROOT PAGE");
+
+                            match WindowResize::ResizePercent(T::window_size())
+                                .get_op(webview.as_ref())
+                            {
+                                Ok(_) => (),
+                                Err(error) => {
+                                    Logging::new(&self.env.app_name)
+                                        .with_level(Level::ERROR)
+                                        .log(error.to_string().as_str());
+
+                                    std::process::exit(1);
+                                }
+                            }
+
+                            match WindowResize::Center.get_op(webview.as_ref()) {
+                                Ok(_) => (),
+                                Err(error) => {
+                                    Logging::new(&self.env.app_name)
+                                        .with_level(Level::ERROR)
+                                        .log(error.to_string().as_str());
+
+                                    std::process::exit(1);
+                                }
                             }
                         }
+
+                        let view_data = update_view.to_html();
+
+                        let webview =
+                            Self::get_webview_log_error(&self.env.app_name, webview.as_ref());
+
+                        Self::eval_script_exit_on_error(
+                            &self.env.app_name,
+                            webview,
+                            &view_data.to_html(),
+                        );
                     }
+                    _ => (),
                 }
-                _ => (),
-            }
-        });
+            });
     }
     fn create_webview(
         event_loop: &EventLoopWindowTarget<ModifyView>,
@@ -240,6 +255,17 @@ where
                     .detach();
                 }
             },
+            "close_window" => {
+                let local_proxy = proxy.clone();
+
+                smol::spawn(async move {
+                    PuppeteerApp::<T>::proxy_error_handler(
+                        local_proxy.send_event(ModifyView::CloseWindow),
+                        app_env.app_name,
+                    );
+                })
+                .detach()
+            }
             _ => {
                 let mut req_parse = T::parse(&req);
 

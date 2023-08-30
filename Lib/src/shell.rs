@@ -1,30 +1,23 @@
 use crate::UiPaint;
-use arrayvec::ArrayVec;
 use std::borrow::Cow;
 use wry::application::window::Theme as WryTheme;
+
+/// The HTML element where all the app body will be injected
+pub const PUPPETEER_APP_ELEMENT: &str = r#"<div id="puppeteer_app"></div>"#;
 
 /// The [Shell] of the app contains all the imports
 /// like fonts, styles and scripts
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Shell {
-    title: &'static str,
-    head_links: ArrayVec<&'static str, 50>,
-    styles: ArrayVec<&'static str, 10>,
-    scripts: ArrayVec<&'static str, 10>,
+    head_links: Vec<&'static str>,
+    styles: Vec<&'static str>,
+    scripts: Vec<&'static str>,
 }
 
 impl Shell {
     /// Initialize a new [Shell]
     pub fn new() -> Self {
         Shell::default()
-    }
-
-    /// Add the title for the shell.
-    /// This is used in the `<title></title>`  HTML element in webview
-    pub fn set_title(mut self, title: &'static str) -> Self {
-        self.title = title;
-
-        self
     }
 
     /// Add the links for `head` tag like fonts, CSS etc. These are where the resources
@@ -43,15 +36,10 @@ impl Shell {
     }
 
     /// Add the scripts in the `<body></body>` field
-    pub fn set_scripts(mut self, script: &'static str) -> Self {
+    pub fn add_script(mut self, script: &'static str) -> Self {
         self.scripts.push(script);
 
         self
-    }
-
-    /// Get the title
-    pub fn title(&self) -> &str {
-        self.title
     }
 
     /// Get the head_links
@@ -95,15 +83,12 @@ impl UiPaint for Shell {
             + r#"<meta charset="UTF-8">"#
             + r#"<meta name="viewport" content="width=device-width, initial-scale=1.0">"#
             + Cow::Owned(head_links)
-            + "<title>"
-            + self.title
-            + "</title>"
             + "<style>"
             + Cow::Owned(styles)
             + "</style>"
             + "</head>"
             + "<body>"
-            + r#"<div id="puppeteer_app"></div>"#
+            + PUPPETEER_APP_ELEMENT
             + Cow::Owned(scripts)
             + "</body>"
             + "</html>"
@@ -113,10 +98,9 @@ impl UiPaint for Shell {
 impl Default for Shell {
     fn default() -> Self {
         Shell {
-            title: "Puppeteer App",
-            styles: ArrayVec::new(),
-            head_links: ArrayVec::new(),
-            scripts: ArrayVec::new(),
+            styles: Vec::default(),
+            head_links: Vec::default(),
+            scripts: Vec::default(),
         }
     }
 }

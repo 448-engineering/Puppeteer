@@ -85,7 +85,7 @@ impl WindowResize {
 }
 
 /// Used to modify the view which can be a WebView
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ModifyView {
     /// Replaces content in the app using the provided ID
     ReplaceApp(Cow<'static, str>),
@@ -96,6 +96,8 @@ pub enum ModifyView {
         /// The `content to replace the content in target node
         content: Cow<'static, str>,
     },
+    /// This event closes the window and exits the EventLoop
+    CloseWindow,
 }
 
 impl ModifyView {
@@ -128,6 +130,7 @@ impl UiPaint for ModifyView {
                     + content.as_ref()
                     + "`;"
             }
+            Self::CloseWindow => Cow::Borrowed("Close Window Requested"),
         }
     }
 }

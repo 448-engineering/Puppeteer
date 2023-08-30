@@ -26,6 +26,9 @@ pub use titlebar::*;
 mod ui_ops;
 pub use ui_ops::*;
 
+mod html_utils;
+pub use html_utils::*;
+
 /// Reuse crates in the lib for better compatibility
 ///
 //
