@@ -2,6 +2,11 @@ use crate::{ActiveAppEnv, ModifyView, Shell};
 use async_trait::async_trait;
 use std::borrow::Cow;
 
+/// A type that defines [Cow<'static, str>] for easier reuse
+pub type StaticCowStr = Cow<'static, str>;
+/// A type of &'static str
+pub type StaticStr = &'static str;
+
 /// This trait is used to perform UI operations like parsing the IPC messages
 /// and generating content to be displayed
 #[async_trait::async_trait]

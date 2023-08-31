@@ -12,7 +12,7 @@ pub enum WindowResize {
     FullScreen,
     /// Maximize the window if it is not maximized
     Maximize,
-    /// Minimize the window if it is not already minized
+    /// Minimize the window if it is not already minimized
     Minimize,
     /// Center the window
     Center,
@@ -101,7 +101,7 @@ pub enum ModifyView {
 }
 
 impl ModifyView {
-    /// Replace the nodes in the body of the app leaving the [Shell] intact
+    /// Replace the nodes in the body of the app leaving the [crate::Shell] intact
     pub fn replace_app(content: &'static dyn UiPaint) -> Self {
         ModifyView::ReplaceApp(content.to_html())
     }

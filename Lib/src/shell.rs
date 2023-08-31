@@ -1,4 +1,4 @@
-use crate::UiPaint;
+use crate::{StaticCowStr, StaticStr, UiPaint};
 use std::borrow::Cow;
 use wry::application::window::Theme as WryTheme;
 
@@ -9,9 +9,9 @@ pub const PUPPETEER_APP_ELEMENT: &str = r#"<div id="puppeteer_app"></div>"#;
 /// like fonts, styles and scripts
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Shell {
-    head_links: Vec<&'static str>,
-    styles: Vec<&'static str>,
-    scripts: Vec<&'static str>,
+    head_links: Vec<StaticCowStr>,
+    styles: Vec<StaticCowStr>,
+    scripts: Vec<StaticCowStr>,
 }
 
 impl Shell {
@@ -22,38 +22,38 @@ impl Shell {
 
     /// Add the links for `head` tag like fonts, CSS etc. These are where the resources
     /// should be loaded from.
-    pub fn add_head_links(mut self, element: &'static str) -> Self {
-        self.head_links.push(element);
+    pub fn add_head_links(mut self, element: StaticStr) -> Self {
+        self.head_links.push(Cow::Borrowed(element));
 
         self
     }
 
     /// Add styles into the `<style></style>` element.
-    pub fn add_style(mut self, style: &'static str) -> Self {
-        self.styles.push(style);
+    pub fn add_style(mut self, style: StaticStr) -> Self {
+        self.styles.push(Cow::Borrowed(style));
 
         self
     }
 
     /// Add the scripts in the `<body></body>` field
-    pub fn add_script(mut self, script: &'static str) -> Self {
+    pub fn add_script(mut self, script: StaticCowStr) -> Self {
         self.scripts.push(script);
 
         self
     }
 
     /// Get the head_links
-    pub fn head_links(&self) -> &[&'static str] {
+    pub fn head_links(&self) -> &[StaticCowStr] {
         self.head_links.as_slice()
     }
 
     /// Get the styles
-    pub fn styles(&self) -> &[&'static str] {
+    pub fn styles(&self) -> &[StaticCowStr] {
         self.styles.as_slice()
     }
 
     /// Get the scripts
-    pub fn scripts(&self) -> &[&'static str] {
+    pub fn scripts(&self) -> &[StaticCowStr] {
         self.scripts.as_slice()
     }
 }

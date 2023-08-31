@@ -1,4 +1,0 @@
-[workspace]
-members = ["Lib", "examples/*"]
-
-resolver = "2"

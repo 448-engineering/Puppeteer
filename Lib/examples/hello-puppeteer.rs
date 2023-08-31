@@ -4,7 +4,7 @@ use html_to_string_macro::html;
 use puppeteer::{
     async_trait::{self},
     tracing::{self, Level},
-    ActiveAppEnv, ModifyView, Puppeteer, PuppeteerApp, Shell, DEFAULT_WINDOW_ACTIONS,
+    ActiveAppEnv, ContextMenu, ModifyView, Puppeteer, PuppeteerApp, Shell, DEFAULT_WINDOW_ACTIONS,
     DEFAULT_WINDOW_ACTIONS_SCRIPT, DEFAULT_WINDOW_ACTIONS_STYLE,
 };
 use tracing_subscriber::FmtSubscriber;
@@ -43,24 +43,65 @@ impl AsRef<str> for AppTest {
     }
 }
 
-const PUPPETEER_LOGO: &str = include_str!("../../../Documentation/Puppeteer-Logo.svg");
-const PUPPETEER_ICON: &str = include_str!("../../../Documentation/Puppeteer-Logo-Icon.svg");
+const PUPPETEER_LOGO: &str = include_str!("../../Documentation/Puppeteer-Logo.svg");
+const PUPPETEER_ICON: &str = include_str!("../../Documentation/Puppeteer-Logo-Icon.svg");
+
+const CONTEXT_MENU: &str = r#"
+<div id = "context-menu-identifier" style = "display: none;">
+<ul class = "menuItems">
+<li class = "items">Menu Item-1 </li>
+<li class = "items">Menu Item-2 </li>
+<li class = "items">Menu Item-3 </li>
+<li class = "items">Menu Item-4 </li>
+<li class = "items">Menu Item-5 </li>
+<li class = "items">Menu Item-6 </li>
+</ul>
+</div>
+"#;
+
+const CONTEXT_MENU_STYLE: &str = r#"
+#context-menu-identifier {
+    position: absolute;
+    background-color: #84abb5;
+    color: white;
+    height: 150px;
+    width: 100px;
+    text-align: center;
+ }
+ .menuItems {
+    list-style: none;
+    font-size: 12px;
+    padding: 0;
+    margin: 0;
+ }
+ .menuItems .items { padding: 5px; border-bottom: 1px solid #e6d4b6;}
+ .menuItems .items:last-child { border: none;}
+ .menuItems .items a {text-decoration: none; color: white;}
+"#;
 
 #[async_trait::async_trait]
 impl Puppeteer for AppTest {
     fn shell() -> Shell {
+        let context_menu_script = ContextMenu::new()
+            .add_id("context-menu-identifier")
+            .build_script();
+
         Shell::new()
+            // The order in which styles are added matters since CSS is cascading
+            .add_style(include_str!("assets/frow.min.css"))
             .add_style("body {background-color: #1a1a1a; color: #FFFFFF;}")
+            .add_style("#logo-icon svg{width: 30px}")
             .add_style(".splash-icon>svg{width: 50vw}")
+            .add_style(CONTEXT_MENU_STYLE)
             .add_style(DEFAULT_WINDOW_ACTIONS_STYLE)
-            .add_style(include_str!("../assets/frow.min.css"))
-            .add_script(DEFAULT_WINDOW_ACTIONS_SCRIPT)
+            .add_script(DEFAULT_WINDOW_ACTIONS_SCRIPT.into())
+            .add_script(context_menu_script)
     }
 
     fn splashscreen() -> ModifyView {
         let splash_html = html!(
             <div class="frow row-center ">
-                <div class="splash-icon frow row-center p-20">{PUPPETEER_LOGO}</div>
+                <div class="splash-icon frow row-center p-20">{ PUPPETEER_LOGO }</div>
             </div>
         );
 
@@ -70,7 +111,13 @@ impl Puppeteer for AppTest {
     async fn init() -> ModifyView {
         smol::Timer::after(std::time::Duration::from_secs(3)).await;
 
-        let title_bar = html!({ DEFAULT_WINDOW_ACTIONS });
+        let title_bar = html!(
+            {CONTEXT_MENU}
+            <div class="frow direction-row">
+                <div id="logo-icon" class="drag-region frow row-start p-5 col-xs-1-4"> { PUPPETEER_ICON }</div>
+                <div class="drag-region frow row-end col-xs-3-4"> { DEFAULT_WINDOW_ACTIONS }</div>
+            </div>
+            <div class="frow"><h1>"HELLO from PUPPETEER"</h1></div>);
 
         ModifyView::ReplaceApp(Cow::Owned(title_bar))
     }
