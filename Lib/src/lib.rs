@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
-#![doc = include_str!("../../README.md")]
+//! ### Puppeteer
+//! ![Puppeteer-Logo](https://raw.githubusercontent.com/448-engineering/Puppeteer/master/Documentation/Puppeteer-Logo-dark-bg.svg)
+//! A Minimal Dependency and Easy to Use GUI Creator in Rust using Async Channels
 
 mod app_env;
 pub use app_env::*;

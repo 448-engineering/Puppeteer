@@ -1,5 +1,5 @@
 ### Puppeteer
-![](Documentation/Puppeteer-Logo-dark-bg.svg)
+![Puppeteer-Logo](https://raw.githubusercontent.com/448-engineering/Puppeteer/master/Documentation/Puppeteer-Logo-dark-bg.svg)
 A Minimal Dependency and Easy to Use GUI Creator in Rust using Async Channels
 
 ##### Examples
