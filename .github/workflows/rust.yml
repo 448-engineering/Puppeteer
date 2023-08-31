@@ -10,8 +10,28 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  build_ubuntu:
     runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: apt install libwebkit2gtk-4.1-dev
+      - name: Build
+        run: cargo build -p puppeteer --verbose
+      - name: Run tests
+        run: cargo test -p puppeteer --verbose
+      - name: Run docs
+        run: cargo doc -p puppeteer --no-deps
+      - name: Install `cargo-deny` for license checks
+        run: cargo install cargo-deny
+      - name: Licenses Check
+        run: cargo doc -p puppeteer --no-deps
+      - name: Run tests
+        run: cargo build --example hello-puppeteer
+
+  build_macos:
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v3
@@ -25,3 +45,23 @@ jobs:
         run: cargo install cargo-deny
       - name: Licenses Check
         run: cargo doc -p puppeteer --no-deps
+      - name: Run tests
+        run: cargo build --example hello-puppeteer
+
+  build_windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build -p puppeteer --verbose
+      - name: Run tests
+        run: cargo test -p puppeteer --verbose
+      - name: Run docs
+        run: cargo doc -p puppeteer --no-deps
+      - name: Install `cargo-deny` for license checks
+        run: cargo install cargo-deny
+      - name: Licenses Check
+        run: cargo doc -p puppeteer --no-deps
+      - name: Run tests
+        run: cargo build --example hello-puppeteer
