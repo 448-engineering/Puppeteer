@@ -2,25 +2,26 @@ name: Rust
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Library `cd`
-      run: cd ./Lib
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Run docs
-      run: cargo doc --no-deps
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build -p puppeteer --verbose
+      - name: Run tests
+        run: cargo test -p puppeteer --verbose
+      - name: Run docs
+        run: cargo doc -p puppeteer --no-deps
+      - name: Install `cargo-deny` for license checks
+        run: cargo install cargo-deny
+      - name: Licenses Check
+        run: cargo doc -p puppeteer --no-deps
