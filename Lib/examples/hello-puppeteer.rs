@@ -94,6 +94,11 @@ impl Puppeteer for AppTest {
             .add_style(".splash-icon>svg{width: 50vw}")
             .add_style(CONTEXT_MENU_STYLE)
             .add_style(DEFAULT_WINDOW_ACTIONS_STYLE)
+            .load_fonts_dir(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/examples/assets/fonts"
+            ))
+            .unwrap()
             .add_script(DEFAULT_WINDOW_ACTIONS_SCRIPT.into())
             .add_script(context_menu_script)
     }
@@ -117,7 +122,8 @@ impl Puppeteer for AppTest {
                 <div id="logo-icon" class="drag-region frow row-start p-5 col-xs-1-4"> { PUPPETEER_ICON }</div>
                 <div class="drag-region frow row-end col-xs-3-4"> { DEFAULT_WINDOW_ACTIONS }</div>
             </div>
-            <div class="frow"><h1>"HELLO from PUPPETEER"</h1></div>);
+            <div class="frow"><h1 style="font-family: 'rockville_solid','sans-serif'">"HELLO from PUPPETEER"</h1></div>
+            <div class="frow"><h3 style="font-family: 'centauri','sans-serif'">"Nice Font :)"</h3></div>);
 
         ModifyView::ReplaceApp(Cow::Owned(title_bar))
     }

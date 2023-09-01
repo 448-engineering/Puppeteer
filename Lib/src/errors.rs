@@ -1,3 +1,5 @@
+use std::io::ErrorKind;
+
 use thiserror::Error;
 use wry::{
     application::{
@@ -41,6 +43,29 @@ pub enum PuppeteerError {
     /// The window is not resizable therefore the resize operation is impossible
     #[error("The `window is not resizable")]
     WindowIsNotResizable,
+    /// An [std::io::ErrorKind]
+    #[error("Represents std::io::ErrorKind")]
+    Io(ErrorKind),
+    /// The path provided for fonts in the `Shell::load_fonts()` is not a valid path
+    #[error("Could not found the fonts directory specified. Check your font path")]
+    FontsDirNotFound,
+    /// The path provided for fonts is valid but the permission to read the directory was denied
+    #[error(
+        "The path provided for fonts is valid but the permission to read the directory was denied"
+    )]
+    FontsDirPermissionDenied,
+    /// For webview only WOFF2 font format is supported.
+    #[error("The font path detected is not a valid `WOFF2` format for the web.")]
+    InvalidFontExpectedWoff2,
+    /// Tried to get a file name without the extension part using `Path::file_stem()` but the file stem does not exist
+    #[error("Tried to get a file name without the extension part using `Path::file_stem()` but the file stem does not exist")]
+    InvalidFileStemName,
+}
+
+impl From<std::io::Error> for PuppeteerError {
+    fn from(error: std::io::Error) -> Self {
+        PuppeteerError::Io(error.kind())
+    }
 }
 
 impl<T> From<EventLoopClosed<T>> for PuppeteerError {

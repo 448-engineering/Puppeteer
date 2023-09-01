@@ -1,5 +1,9 @@
-use crate::{StaticCowStr, StaticStr, UiPaint};
-use std::borrow::Cow;
+use crate::{PuppeteerError, PuppeteerResult, StaticCowStr, StaticStr, UiPaint};
+use base64ct::{Base64, Encoding};
+use file_format::FileFormat;
+use futures_lite::{AsyncReadExt, StreamExt};
+use smol::fs::{read_dir, File};
+use std::{borrow::Cow, io::ErrorKind, path::Path};
 use wry::application::window::Theme as WryTheme;
 
 /// The HTML element where all the app body will be injected
@@ -12,6 +16,7 @@ pub struct Shell {
     head_links: Vec<StaticCowStr>,
     styles: Vec<StaticCowStr>,
     scripts: Vec<StaticCowStr>,
+    fonts: Vec<StaticCowStr>,
 }
 
 impl Shell {
@@ -42,6 +47,13 @@ impl Shell {
         self
     }
 
+    /// Add font to the shell. The font is required to be Base64
+    pub fn add_fonts(mut self, font_bytes: &'static str) -> Self {
+        self.fonts.push(Cow::Borrowed(font_bytes));
+
+        self
+    }
+
     /// Get the head_links
     pub fn head_links(&self) -> &[StaticCowStr] {
         self.head_links.as_slice()
@@ -55,6 +67,68 @@ impl Shell {
     /// Get the scripts
     pub fn scripts(&self) -> &[StaticCowStr] {
         self.scripts.as_slice()
+    }
+
+    /// Load fonts in a particular directory
+    pub fn load_fonts_dir(mut self, path_to_fonts: impl AsRef<Path>) -> PuppeteerResult<Self> {
+        dbg!(&path_to_fonts.as_ref());
+        smol::block_on(async {
+            let mut entries = match read_dir(path_to_fonts).await {
+                Ok(dir) => dir,
+                Err(error) => {
+                    dbg!(&error.to_string());
+                    if error.kind() == ErrorKind::NotFound {
+                        return Err(PuppeteerError::FontsDirNotFound);
+                    } else if error.kind() == ErrorKind::PermissionDenied {
+                        return Err(PuppeteerError::FontsDirPermissionDenied);
+                    } else {
+                        return Err(error.into());
+                    }
+                }
+            };
+
+            while let Some(entry) = entries.try_next().await? {
+                let mut file = File::open(entry.path()).await?;
+                let mut buffer = Vec::<u8>::new();
+
+                file.read_to_end(&mut buffer).await?;
+
+                let file_format_detected = FileFormat::from_bytes(&buffer);
+
+                if file_format_detected != FileFormat::WebOpenFontFormat2 {
+                    return Err(PuppeteerError::InvalidFontExpectedWoff2);
+                }
+
+                let font_name = entry.path().clone();
+                let font_stem = match font_name.file_stem() {
+                    Some(file_stem) => file_stem,
+                    None => return Err(PuppeteerError::InvalidFileStemName),
+                };
+
+                let font = Cow::Borrowed("data:application/font-woff2;base64,")
+                    + Cow::Owned(Base64::encode_string(&buffer));
+                let injector = Cow::Borrowed("var dataUri = \"")
+                    + font
+                    + "\";"
+                    + Cow::Borrowed(
+                        r#"
+                    var fontFace = new FontFace(""#,
+                    )
+                    + Cow::Owned(font_stem.to_string_lossy().to_string())
+                    + Cow::Borrowed(
+                        r#"", `url(${dataUri})`, {
+                        style: "normal",
+                        weight: "normal",
+                        stretch: "condensed",
+                      });
+                      document.fonts.add(fontFace);
+                    "#,
+                    ); //FIXME Add styles for fonts here*/
+                self.fonts.push(Cow::Owned(injector.to_string()));
+            }
+
+            Ok(self)
+        })
     }
 }
 
@@ -78,6 +152,12 @@ impl UiPaint for Shell {
             .map(|script| script.to_owned())
             .collect::<String>();
 
+        let fonts = self
+            .fonts
+            .iter()
+            .map(|font| font.to_string())
+            .collect::<String>();
+
         Cow::Borrowed("<!DOCTYPE html>")
             + "<head>"
             + r#"<meta charset="UTF-8">"#
@@ -88,6 +168,9 @@ impl UiPaint for Shell {
             + "</style>"
             + "</head>"
             + "<body>"
+            + "<script>"
+            + Cow::Owned(fonts)
+            + "</script>"
             + PUPPETEER_APP_ELEMENT
             + Cow::Owned(scripts)
             + "</body>"
@@ -101,6 +184,7 @@ impl Default for Shell {
             styles: Vec::default(),
             head_links: Vec::default(),
             scripts: Vec::default(),
+            fonts: Vec::default(),
         }
     }
 }
