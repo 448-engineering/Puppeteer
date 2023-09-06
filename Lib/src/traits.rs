@@ -28,7 +28,7 @@ pub trait Puppeteer {
     /// like fonts or load user data like username from a database, etc.
     /// Load the root page after initialization has completed
 
-    async fn init() -> ModifyView;
+    async fn init(app_env: &ActiveAppEnv) -> ModifyView;
 
     /// The splash screen loaded when an app is being initialized
     fn splashscreen() -> ModifyView;

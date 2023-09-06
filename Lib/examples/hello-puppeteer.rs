@@ -22,6 +22,11 @@ fn main() {
     smol::block_on(async {
         PuppeteerApp::<AppTest>::init("Puppeteer Test App")
             .unwrap()
+            .with_fonts_dir(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/examples/assets/fonts"
+            ))
+            .unwrap()
             .start()
             .await
             .unwrap()
@@ -94,11 +99,6 @@ impl Puppeteer for AppTest {
             .add_style(".splash-icon>svg{width: 50vw}")
             .add_style(CONTEXT_MENU_STYLE)
             .add_style(DEFAULT_WINDOW_ACTIONS_STYLE)
-            .load_fonts_dir(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/examples/assets/fonts"
-            ))
-            .unwrap()
             .add_script(DEFAULT_WINDOW_ACTIONS_SCRIPT.into())
             .add_script(context_menu_script)
     }
@@ -113,7 +113,9 @@ impl Puppeteer for AppTest {
         ModifyView::ReplaceApp(Cow::Owned(splash_html))
     }
 
-    async fn init() -> ModifyView {
+    async fn init(app_env: &ActiveAppEnv) -> ModifyView {
+        dbg!(app_env);
+
         smol::Timer::after(std::time::Duration::from_secs(3)).await;
 
         let title_bar = html!(

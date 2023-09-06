@@ -1,4 +1,4 @@
-use crate::{PuppeteerError, PuppeteerResult, StaticCowStr, StaticStr, UiPaint};
+use crate::{ActiveAppEnv, PuppeteerError, PuppeteerResult, StaticCowStr, StaticStr, UiPaint};
 use base64ct::{Base64, Encoding};
 use file_format::FileFormat;
 use futures_lite::{AsyncReadExt, StreamExt};
@@ -70,8 +70,11 @@ impl Shell {
     }
 
     /// Load fonts in a particular directory
-    pub fn load_fonts_dir(mut self, path_to_fonts: impl AsRef<Path>) -> PuppeteerResult<Self> {
-        dbg!(&path_to_fonts.as_ref());
+    pub fn load_fonts_dir(
+        mut self,
+        path_to_fonts: impl AsRef<Path>,
+        app_env: &mut ActiveAppEnv,
+    ) -> PuppeteerResult<Self> {
         smol::block_on(async {
             let mut entries = match read_dir(path_to_fonts).await {
                 Ok(dir) => dir,
@@ -104,6 +107,11 @@ impl Shell {
                     Some(file_stem) => file_stem,
                     None => return Err(PuppeteerError::InvalidFileStemName),
                 };
+
+                tracing::trace!("LOADED FONT: {:?}", &font_stem);
+                app_env
+                    .fonts
+                    .push(StaticCowStr::Owned(font_stem.to_string_lossy().to_string()));
 
                 let font = Cow::Borrowed("data:application/font-woff2;base64,")
                     + Cow::Owned(Base64::encode_string(&buffer));

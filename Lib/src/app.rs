@@ -1,7 +1,8 @@
 use crate::{
-    AppEnvironment, Logging, ModifyView, PuppeteerError, PuppeteerResult, UiPaint, WindowResize,
+    AppEnvironment, Logging, ModifyView, PuppeteerError, PuppeteerResult, StaticCowStr, UiPaint,
+    WindowResize,
 };
-use std::marker::PhantomData;
+use std::{marker::PhantomData, path::Path};
 use tracing::Level;
 use wry::{
     application::{
@@ -33,6 +34,8 @@ pub struct ActiveAppEnv {
     /// All the monitors that have been detected.
     /// This is mostly useful for desktops where there could be multiple monitors connected
     pub available_monitors: Vec<MonitorHandle>,
+    /// List all the fonts that were loaded by the app
+    pub fonts: Vec<StaticCowStr>,
 }
 
 /// This struct us used to build your app
@@ -65,9 +68,17 @@ where
                 primary_monitor: Option::default(),
                 current_monitor: Option::default(),
                 available_monitors: Vec::default(),
+                fonts: Vec::default(),
             },
             phantom: PhantomData::default(),
         })
+    }
+
+    /// Load fonts directory
+    pub fn with_fonts_dir(mut self, path: impl AsRef<Path>) -> PuppeteerResult<Self> {
+        T::shell().load_fonts_dir(path, &mut self.env)?;
+
+        Ok(self)
     }
 
     /// Start the event loop.
@@ -86,8 +97,10 @@ where
 
         let init_proxy = self.proxy.clone();
 
+        let app_env = self.env.clone();
+
         smol::spawn(async move {
-            let init = T::init().await;
+            let init = T::init(&app_env).await;
 
             PuppeteerApp::<T>::proxy_error_handler(init_proxy.send_event(init), &self.env.app_name)
         })
