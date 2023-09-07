@@ -125,7 +125,8 @@ impl Puppeteer for AppTest {
                 <div class="drag-region frow row-end col-xs-3-4"> { DEFAULT_WINDOW_ACTIONS }</div>
             </div>
             <div class="frow"><h1 style="font-family: 'rockville_solid','sans-serif'">"HELLO from PUPPETEER"</h1></div>
-            <div class="frow"><h3 style="font-family: 'centauri','sans-serif'">"Nice Font :)"</h3></div>);
+            <div class="frow"><h3 style="font-family: 'centauri','sans-serif'">"Nice Font :)"</h3></div>
+        );
 
         ModifyView::ReplaceApp(Cow::Owned(title_bar))
     }

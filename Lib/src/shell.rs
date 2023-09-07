@@ -9,6 +9,27 @@ use wry::application::window::Theme as WryTheme;
 /// The HTML element where all the app body will be injected
 pub const PUPPETEER_APP_ELEMENT: &str = r#"<div id="puppeteer_app"></div>"#;
 
+/// This is the color palette of the app
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub struct ColorPalette {
+    /// The dominant color
+    pub primary: StaticStr, //FIXME switch to HexColor
+    /// The color to contrast the dominant color
+    pub secondary: StaticStr, //FIXME switch to HexColor
+    /// The accent color
+    pub tertiary: StaticStr, //FIXME switch to HexColor
+}
+
+impl Default for ColorPalette {
+    fn default() -> Self {
+        ColorPalette {
+            primary: "#FFFFFF",
+            secondary: "#000000",
+            tertiary: "#E6E6E6",
+        }
+    }
+}
+
 /// The [Shell] of the app contains all the imports
 /// like fonts, styles and scripts
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -17,6 +38,7 @@ pub struct Shell {
     styles: Vec<StaticCowStr>,
     scripts: Vec<StaticCowStr>,
     fonts: Vec<StaticCowStr>,
+    palette: ColorPalette,
 }
 
 impl Shell {
@@ -193,6 +215,7 @@ impl Default for Shell {
             head_links: Vec::default(),
             scripts: Vec::default(),
             fonts: Vec::default(),
+            palette: ColorPalette::default(),
         }
     }
 }
