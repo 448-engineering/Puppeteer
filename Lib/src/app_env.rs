@@ -61,9 +61,9 @@ impl OsType {
     }
 }
 
-impl Into<OsType> for &str {
-    fn into(self) -> OsType {
-        match self {
+impl From<&str> for OsType {
+    fn from(value: &str) -> OsType {
+        match value {
             "linux" => OsType::Linux,
             "macos" => OsType::MacOs,
             "ios" => OsType::Ios,
@@ -98,9 +98,9 @@ impl OsFamily {
     }
 }
 
-impl Into<OsFamily> for &str {
-    fn into(self) -> OsFamily {
-        match self {
+impl From<&str> for OsFamily {
+    fn from(value: &str) -> Self {
+        match value {
             "unix" => OsFamily::Unix,
             "windows" => OsFamily::Windows,
             "unrecognized_family" => OsFamily::UnrecognizedFamily,
@@ -146,9 +146,9 @@ impl CpuArchitecture {
     }
 }
 
-impl Into<CpuArchitecture> for &str {
-    fn into(self) -> CpuArchitecture {
-        match self {
+impl From<&str> for CpuArchitecture {
+    fn from(value: &str) -> CpuArchitecture {
+        match value {
             "x86" => CpuArchitecture::Intel32,
             "x86_64" => CpuArchitecture::Intel64,
             "arm" => CpuArchitecture::Arm32,
@@ -186,9 +186,9 @@ impl DynLibExtension {
     }
 }
 
-impl Into<DynLibExtension> for &str {
-    fn into(self) -> DynLibExtension {
-        match self {
+impl From<&str> for DynLibExtension {
+    fn from(value: &str) -> DynLibExtension {
+        match value {
             "so" => DynLibExtension::So,
             "dylib" => DynLibExtension::Dylib,
             "dll" => DynLibExtension::Dll,
@@ -214,9 +214,9 @@ impl DynLibPrefix {
     }
 }
 
-impl Into<DynLibPrefix> for &str {
-    fn into(self) -> DynLibPrefix {
-        match self {
+impl From<&str> for DynLibPrefix {
+    fn from(value: &str) -> DynLibPrefix {
+        match value {
             "lib" => DynLibPrefix::Lib,
             _ => DynLibPrefix::None,
         }
@@ -231,13 +231,19 @@ mod sanity_test {
     fn detect_os() {
         // Detect App OS
         if cfg!(target_os = "linux") {
-            assert_eq!(OsType::Linux, OsType::which_os().into());
-        } else if cfg!(target_os = "windows") {
-            assert_eq!(OsType::Windows, OsType::which_os().into());
-        } else if cfg!(target_os = "macos") {
-            assert_eq!(OsType::MacOs, OsType::which_os().into());
-        } else if cfg!(target_os = "silly_os") {
-            assert_eq!(OsType::UnrecognizedOs, OsType::which_os().into());
+            assert_eq!(OsType::Linux, OsType::which_os());
+        }
+
+        if cfg!(target_os = "windows") {
+            assert_eq!(OsType::Windows, OsType::which_os());
+        }
+
+        if cfg!(target_os = "macos") {
+            assert_eq!(OsType::MacOs, OsType::which_os());
+        }
+
+        if cfg!(target_os = "silly_os") {
+            assert_eq!(OsType::UnrecognizedOs, OsType::which_os());
         }
     }
 
@@ -247,18 +253,23 @@ mod sanity_test {
         let init_app_env = AppEnvironment::init();
 
         if cfg!(target_os = "linux") {
-            assert_eq!(init_app_env.os, OsType::which_os().into());
-        } else if cfg!(target_os = "windows") {
-            assert_eq!(init_app_env.os, OsType::which_os().into());
-        } else if cfg!(target_os = "macos") {
-            assert_eq!(init_app_env.os, OsType::which_os().into());
-        } else {
+            assert_eq!(init_app_env.os, OsType::which_os());
+        }
+
+        if cfg!(target_os = "windows") {
+            assert_eq!(init_app_env.os, OsType::which_os());
+        }
+
+        if cfg!(target_os = "macos") {
+            assert_eq!(init_app_env.os, OsType::which_os());
         }
 
         if cfg!(target_arch = "unix") {
-            assert_eq!(init_app_env.family, OsFamily::which_os_family().into());
-        } else if cfg!(target_family = "windows") {
-            assert_eq!(init_app_env.family, OsFamily::which_os_family().into());
+            assert_eq!(init_app_env.family, OsFamily::which_os_family());
+        }
+
+        if cfg!(target_family = "windows") {
+            assert_eq!(init_app_env.family, OsFamily::which_os_family());
         }
     }
 }

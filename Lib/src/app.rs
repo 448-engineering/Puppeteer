@@ -70,7 +70,7 @@ where
                 available_monitors: Vec::default(),
                 fonts: Vec::default(),
             },
-            phantom: PhantomData::default(),
+            phantom: PhantomData,
         })
     }
 
@@ -89,7 +89,7 @@ where
             PuppeteerApp::<T>::create_webview(&self.event_loop, self.proxy.clone(), &mut self.env)?;
         let splash_html = T::splashscreen();
 
-        Self::eval_script_exit_on_error(&self.env.app_name, &webview, &splash_html.to_html());
+        Self::eval_script_exit_on_error(self.env.app_name, &webview, &splash_html.to_html());
 
         let mut webview = Some(webview);
 
@@ -102,7 +102,7 @@ where
         smol::spawn(async move {
             let init = T::init(&app_env).await;
 
-            PuppeteerApp::<T>::proxy_error_handler(init_proxy.send_event(init), &self.env.app_name)
+            PuppeteerApp::<T>::proxy_error_handler(init_proxy.send_event(init), self.env.app_name)
         })
         .detach();
 
@@ -112,14 +112,14 @@ where
 
                 match event {
                     Event::NewEvents(StartCause::Init) => {
-                        Logging::new(&self.env.app_name).log("LOADED SPLASHSCREEN");
+                        Logging::new(self.env.app_name).log("LOADED SPLASHSCREEN");
 
                         match WindowResize::ResizePercent(T::splash_window_size())
                             .get_op(webview.as_ref())
                         {
                             Ok(_) => (),
                             Err(error) => {
-                                Logging::new(&self.env.app_name)
+                                Logging::new(self.env.app_name)
                                     .with_level(Level::ERROR)
                                     .log(error.to_string().as_str());
 
@@ -130,10 +130,10 @@ where
                         let view_data = T::splashscreen();
 
                         let webview =
-                            Self::get_webview_log_error(&self.env.app_name, webview.as_ref());
+                            Self::get_webview_log_error(self.env.app_name, webview.as_ref());
 
                         Self::eval_script_exit_on_error(
-                            &self.env.app_name,
+                            self.env.app_name,
                             webview,
                             &view_data.to_html(),
                         );
@@ -161,7 +161,7 @@ where
                             {
                                 Ok(_) => (),
                                 Err(error) => {
-                                    Logging::new(&self.env.app_name)
+                                    Logging::new(self.env.app_name)
                                         .with_level(Level::ERROR)
                                         .log(error.to_string().as_str());
 
@@ -172,7 +172,7 @@ where
                             match WindowResize::Center.get_op(webview.as_ref()) {
                                 Ok(_) => (),
                                 Err(error) => {
-                                    Logging::new(&self.env.app_name)
+                                    Logging::new(self.env.app_name)
                                         .with_level(Level::ERROR)
                                         .log(error.to_string().as_str());
 
@@ -184,10 +184,10 @@ where
                         let view_data = update_view.to_html();
 
                         let webview =
-                            Self::get_webview_log_error(&self.env.app_name, webview.as_ref());
+                            Self::get_webview_log_error(self.env.app_name, webview.as_ref());
 
                         Self::eval_script_exit_on_error(
-                            &self.env.app_name,
+                            self.env.app_name,
                             webview,
                             &view_data.to_html(),
                         );
@@ -204,7 +204,7 @@ where
         let window = WindowBuilder::new()
             .with_title(app_env.app_name)
             .with_decorations(false)
-            .build(&event_loop)?;
+            .build(event_loop)?;
         Logging::new(app_env.app_name).log("INITIALIZED WINDOW");
 
         let primary_monitor = window.primary_monitor();
@@ -232,7 +232,7 @@ where
 
         let handler = PuppeteerApp::<T>::handler(proxy, app_env.clone());
 
-        let devtools_enabled = if cfg!(debug_assertions) { true } else { false };
+        let devtools_enabled = cfg!(debug_assertions);
 
         let webview = WebViewBuilder::new(window)?
             .with_html(T::shell().to_html())?

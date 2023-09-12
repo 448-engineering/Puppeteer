@@ -49,9 +49,7 @@ pub trait Puppeteer {
 #[async_trait]
 pub trait UiPaint {
     /// Can be rendered by native renderer
-    fn to_native(&self) -> () {
-        ()
-    }
+    fn to_native(&self) {}
 
     /// Convert to HTML format for use in HTML Web based renderer
     fn to_html(&self) -> Cow<str>;

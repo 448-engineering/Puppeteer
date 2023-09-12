@@ -32,7 +32,7 @@ impl Default for ColorPalette {
 
 /// The [Shell] of the app contains all the imports
 /// like fonts, styles and scripts
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Shell {
     head_links: Vec<StaticCowStr>,
     styles: Vec<StaticCowStr>,
@@ -178,23 +178,11 @@ impl Shell {
 
 impl UiPaint for Shell {
     fn to_html(&self) -> Cow<str> {
-        let head_links = self
-            .head_links
-            .iter()
-            .map(|head_link| head_link.to_owned())
-            .collect::<String>();
+        let head_links = self.head_links.iter().cloned().collect::<String>();
 
-        let styles = self
-            .styles
-            .iter()
-            .map(|style| style.to_owned())
-            .collect::<String>();
+        let styles = self.styles.iter().cloned().collect::<String>();
 
-        let scripts = self
-            .scripts
-            .iter()
-            .map(|script| script.to_owned())
-            .collect::<String>();
+        let scripts = self.scripts.iter().cloned().collect::<String>();
 
         let fonts = self
             .fonts
@@ -219,18 +207,6 @@ impl UiPaint for Shell {
             + Cow::Owned(scripts)
             + "</body>"
             + "</html>"
-    }
-}
-
-impl Default for Shell {
-    fn default() -> Self {
-        Shell {
-            styles: Vec::default(),
-            head_links: Vec::default(),
-            scripts: Vec::default(),
-            fonts: Vec::default(),
-            palette: ColorPalette::default(),
-        }
     }
 }
 

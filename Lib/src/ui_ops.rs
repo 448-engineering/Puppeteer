@@ -67,7 +67,7 @@ impl WindowResize {
                     *inner_value
                 };
 
-                let _scale_value = value as f32 / 100f32; //FIXME Use this scaling factor
+                let _scale_value = value / 100f32; //FIXME Use this scaling factor
 
                 if let Some(monitor) = window.current_monitor() {
                     let screen_size = monitor.size();
@@ -127,7 +127,7 @@ impl UiPaint for ModifyView {
             }
             Self::ReplaceNodeWithId { id, content } => {
                 Cow::Borrowed(r#"document.getElementById(""#)
-                    + id.as_ref()
+                    + *id
                     + r#"").innerHTML=`"#
                     + content.as_ref()
                     + "`;"

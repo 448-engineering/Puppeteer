@@ -43,28 +43,28 @@ impl TitleBar {
 
     /// Set the text to be displayed in the title bar
     pub fn set_text_content(mut self, text_content: &'static str) -> Self {
-        self.text_content = text_content.into();
+        self.text_content = text_content;
 
         self
     }
 
     /// Sets the SVG minimize icon
     pub fn set_minimize_icon(mut self, minimize_icon: &'static str) -> Self {
-        self.minimize = minimize_icon.into();
+        self.minimize = minimize_icon;
 
         self
     }
 
     /// Sets the SVG maximize icon
     pub fn set_maximize_icon(mut self, maximize_icon: &'static str) -> Self {
-        self.maximize = maximize_icon.into();
+        self.maximize = maximize_icon;
 
         self
     }
 
     /// Sets the SVG close icon
     pub fn set_close_icon(mut self, close_icon: &'static str) -> Self {
-        self.close = close_icon.into();
+        self.close = close_icon;
 
         self
     }
@@ -123,10 +123,10 @@ impl Default for TitleBar {
     fn default() -> Self {
         TitleBar {
             id: "title-bar",
-            text_content: "Puppeteer App".into(),
-            minimize: MINIMIZE.into(),
-            maximize: MAXIMIZE.into(),
-            close: CLOSE.into(),
+            text_content: "Puppeteer App",
+            minimize: MINIMIZE,
+            maximize: MAXIMIZE,
+            close: CLOSE,
         }
     }
 }
