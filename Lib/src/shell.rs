@@ -62,9 +62,23 @@ impl Shell {
         self
     }
 
+    /// Add multiple stypes in the `<style></style>` field
+    pub fn add_styles(mut self, styles: impl AsRef<[StaticCowStr]>) -> Self {
+        self.styles.extend_from_slice(styles.as_ref());
+
+        self
+    }
+
     /// Add the scripts in the `<body></body>` field
     pub fn add_script(mut self, script: StaticCowStr) -> Self {
         self.scripts.push(script);
+
+        self
+    }
+
+    /// Add the scripts in the `<body></body>` field
+    pub fn add_scripts(mut self, scripts: impl AsRef<[StaticCowStr]>) -> Self {
+        self.scripts.extend_from_slice(scripts.as_ref());
 
         self
     }

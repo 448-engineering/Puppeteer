@@ -98,6 +98,8 @@ pub enum ModifyView {
     },
     /// This event closes the window and exits the EventLoop
     CloseWindow,
+    /// Perform No Action on the data, this is useful for reactive UI like taking data from input field in real time
+    Skip,
 }
 
 impl ModifyView {
@@ -131,6 +133,7 @@ impl UiPaint for ModifyView {
                     + "`;"
             }
             Self::CloseWindow => Cow::Borrowed("Close Window Requested"),
+            Self::Skip => Cow::Borrowed("Skipped"),
         }
     }
 }
