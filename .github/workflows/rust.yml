@@ -18,11 +18,11 @@ jobs:
       - name: Install dependencies
         run: sudo apt install libwebkit2gtk-4.1-dev
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Install `cargo-deny` for license checks
         run: cargo install cargo-deny
       - name: Run formatter
-        run: cargo fmt --all -- --check
+        run: cargo fmt --all -- --config format_code_in_doc_comments=true --check
       - name: Build
         run: cargo build -p puppeteer --verbose
       - name: Run tests
@@ -40,9 +40,9 @@ jobs:
       - name: Install `cargo-deny` for license checks
         run: cargo install cargo-deny
       - name: Run formatter
-        run: cargo fmt --all -- --check
+        run:  cargo fmt --all -- --config format_code_in_doc_comments=true --check
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Build
         run: cargo build -p puppeteer --verbose
       - name: Run tests
@@ -60,9 +60,9 @@ jobs:
       - name: Install `cargo-deny` for license checks
         run: cargo install cargo-deny
       - name: Run formatter
-        run: cargo fmt --all -- --check
+        run: cargo fmt --all -- --config format_code_in_doc_comments=true --check
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Build
         run: cargo build -p puppeteer --verbose
       - name: Run tests

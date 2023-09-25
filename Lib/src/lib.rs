@@ -38,7 +38,6 @@ mod html_utils;
 pub use html_utils::*;
 
 /// Reuse crates in the lib for better compatibility
-///
 //
 pub use arrayvec;
 pub use async_trait;
