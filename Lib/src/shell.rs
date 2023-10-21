@@ -69,6 +69,32 @@ impl Shell {
         self
     }
 
+    /// Add all the styles in a certain directory `path` with the file names provided.
+    /// NOTE: CSS style sheets are cascading so the order in which the file names for
+    /// the styles are added is important.
+    pub async fn add_styles_dir(
+        mut self,
+        path: &str,
+        files: impl AsRef<[&str]>,
+    ) -> PuppeteerResult<Self> {
+        let paths = files
+            .as_ref()
+            .iter()
+            .map(|file| path.to_owned() + file + ".css")
+            .collect::<Vec<String>>();
+
+        while let Some(file) = futures_lite::stream::iter(&paths).next().await {
+            let mut file = smol::fs::File::open(file).await?;
+            let mut contents = String::new();
+
+            file.read_to_string(&mut contents).await?;
+
+            self.styles.push(contents.into());
+        }
+
+        Ok(self)
+    }
+
     /// Add the scripts in the `<body></body>` field
     pub fn add_script(mut self, script: StaticCowStr) -> Self {
         self.scripts.push(script);
@@ -106,73 +132,71 @@ impl Shell {
     }
 
     /// Load fonts in a particular directory
-    pub fn load_fonts_dir(
+    pub async fn load_fonts_dir(
         mut self,
         path_to_fonts: impl AsRef<Path>,
         app_env: &mut ActiveAppEnv,
     ) -> PuppeteerResult<Self> {
-        smol::block_on(async {
-            let mut entries = match read_dir(path_to_fonts).await {
-                Ok(dir) => dir,
-                Err(error) => {
-                    dbg!(&error.to_string());
-                    if error.kind() == ErrorKind::NotFound {
-                        return Err(PuppeteerError::FontsDirNotFound);
-                    } else if error.kind() == ErrorKind::PermissionDenied {
-                        return Err(PuppeteerError::FontsDirPermissionDenied);
-                    } else {
-                        return Err(error.into());
-                    }
+        let mut entries = match read_dir(path_to_fonts).await {
+            Ok(dir) => dir,
+            Err(error) => {
+                dbg!(&error.to_string());
+                if error.kind() == ErrorKind::NotFound {
+                    return Err(PuppeteerError::FontsDirNotFound);
+                } else if error.kind() == ErrorKind::PermissionDenied {
+                    return Err(PuppeteerError::FontsDirPermissionDenied);
+                } else {
+                    return Err(error.into());
                 }
+            }
+        };
+
+        while let Some(entry) = entries.try_next().await? {
+            let mut file = File::open(entry.path()).await?;
+            let mut buffer = Vec::<u8>::new();
+
+            file.read_to_end(&mut buffer).await?;
+
+            let file_format_detected = FileFormat::from_bytes(&buffer);
+
+            if file_format_detected != FileFormat::WebOpenFontFormat2 {
+                return Err(PuppeteerError::InvalidFontExpectedWoff2);
+            }
+
+            let font_name = entry.path().clone();
+            let font_stem = match font_name.file_stem() {
+                Some(file_stem) => file_stem,
+                None => return Err(PuppeteerError::InvalidFileStemName),
             };
 
-            while let Some(entry) = entries.try_next().await? {
-                let mut file = File::open(entry.path()).await?;
-                let mut buffer = Vec::<u8>::new();
+            tracing::trace!("LOADED FONT: {:?}", &font_stem);
+            app_env
+                .fonts
+                .push(StaticCowStr::Owned(font_stem.to_string_lossy().to_string()));
 
-                file.read_to_end(&mut buffer).await?;
-
-                let file_format_detected = FileFormat::from_bytes(&buffer);
-
-                if file_format_detected != FileFormat::WebOpenFontFormat2 {
-                    return Err(PuppeteerError::InvalidFontExpectedWoff2);
-                }
-
-                let font_name = entry.path().clone();
-                let font_stem = match font_name.file_stem() {
-                    Some(file_stem) => file_stem,
-                    None => return Err(PuppeteerError::InvalidFileStemName),
-                };
-
-                tracing::trace!("LOADED FONT: {:?}", &font_stem);
-                app_env
-                    .fonts
-                    .push(StaticCowStr::Owned(font_stem.to_string_lossy().to_string()));
-
-                let font = Cow::Borrowed("data:application/font-woff2;base64,")
-                    + Cow::Owned(Base64::encode_string(&buffer));
-                let injector = Cow::Borrowed("var dataUri = \"")
-                    + font
-                    + "\";"
-                    + Cow::Borrowed(
-                        r#"
+            let font = Cow::Borrowed("data:application/font-woff2;base64,")
+                + Cow::Owned(Base64::encode_string(&buffer));
+            let injector = Cow::Borrowed("var dataUri = \"")
+                + font
+                + "\";"
+                + Cow::Borrowed(
+                    r#"
                     var fontFace = new FontFace(""#,
-                    )
-                    + Cow::Owned(font_stem.to_string_lossy().to_string())
-                    + Cow::Borrowed(
-                        r#"", `url(${dataUri})`, {
+                )
+                + Cow::Owned(font_stem.to_string_lossy().to_string())
+                + Cow::Borrowed(
+                    r#"", `url(${dataUri})`, {
                         style: "normal",
                         weight: "normal",
                         stretch: "condensed",
                       });
                       document.fonts.add(fontFace);
                     "#,
-                    ); //FIXME Add styles for fonts here*/
-                self.fonts.push(Cow::Owned(injector.to_string()));
-            }
+                ); //FIXME Add styles for fonts here*/
+            self.fonts.push(Cow::Owned(injector.to_string()));
+        }
 
-            Ok(self)
-        })
+        Ok(self)
     }
 }
 

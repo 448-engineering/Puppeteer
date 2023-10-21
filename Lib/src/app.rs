@@ -52,14 +52,14 @@ where
     T: crate::Puppeteer + 'static + Send + Sync,
 {
     /// Initializes the Puppeteer app
-    pub fn init(app_name: &'static str) -> PuppeteerResult<Self> {
+    pub fn init(app_name: &'static str) -> Self {
         let event_loop = EventLoopBuilder::<ModifyView>::with_user_event().build();
         Logging::new(app_name).log("INITIALIZED EVENT_LOOP");
 
         let proxy = event_loop.create_proxy();
         Logging::new(app_name).log("INITIALIZED EVENT_LOOP PROXY");
 
-        Ok(PuppeteerApp {
+        PuppeteerApp {
             event_loop,
             proxy,
             env: ActiveAppEnv {
@@ -71,12 +71,12 @@ where
                 fonts: Vec::default(),
             },
             phantom: PhantomData,
-        })
+        }
     }
 
     /// Load fonts directory
-    pub fn with_fonts_dir(mut self, path: impl AsRef<Path>) -> PuppeteerResult<Self> {
-        T::shell().load_fonts_dir(path, &mut self.env)?;
+    pub async fn with_fonts_dir(mut self, path: impl AsRef<Path>) -> PuppeteerResult<Self> {
+        T::shell().load_fonts_dir(path, &mut self.env).await?;
 
         Ok(self)
     }

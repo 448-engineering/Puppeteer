@@ -27,11 +27,11 @@ fn main() {
 
     smol::block_on(async {
         PuppeteerApp::<AppTest>::init("Puppeteer Test App")
-            .unwrap()
             .with_fonts_dir(concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/examples/assets/fonts"
             ))
+            .await
             .unwrap()
             .start()
             .await
