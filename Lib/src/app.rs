@@ -76,7 +76,7 @@ where
 
     /// Load fonts directory
     pub async fn with_fonts_dir(mut self, path: impl AsRef<Path>) -> PuppeteerResult<Self> {
-        T::shell().load_fonts_dir(path, &mut self.env).await?;
+        T::shell().await.load_fonts_dir(path, &mut self.env).await?;
 
         Ok(self)
     }
@@ -138,7 +138,10 @@ where
                             &view_data.to_html(),
                         );
                     }
-                    Event::WindowEvent { event, .. } if event == WindowEvent::CloseRequested => {
+                    Event::WindowEvent {
+                        event: WindowEvent::CloseRequested,
+                        ..
+                    } => {
                         webview.take();
                         *control_flow = ControlFlow::Exit;
                     }
@@ -234,8 +237,10 @@ where
 
         let devtools_enabled = cfg!(debug_assertions);
 
+        let shell = smol::block_on(async { T::shell().await });
+
         let webview = WebViewBuilder::new(window)?
-            .with_html(T::shell().to_html())?
+            .with_html(shell.to_html())?
             .with_devtools(devtools_enabled)
             .with_ipc_handler(handler)
             .build()?;

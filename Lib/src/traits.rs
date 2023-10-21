@@ -21,7 +21,7 @@ pub trait Puppeteer {
     }
 
     /// Method is run to generate a [Shell].
-    fn shell() -> Shell;
+    async fn shell() -> Shell;
 
     /// Initialize function which loads data necessary for
     /// the app to function. This data can be use to load resources

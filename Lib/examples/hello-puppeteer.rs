@@ -111,7 +111,7 @@ function email_ops() {
 
 #[async_trait::async_trait]
 impl Puppeteer for AppTest {
-    fn shell() -> Shell {
+    async fn shell() -> Shell {
         let context_menu_script = ContextMenu::new()
             .add_id("context-menu-identifier")
             .build_script();
