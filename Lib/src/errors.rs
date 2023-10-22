@@ -60,6 +60,9 @@ pub enum PuppeteerError {
     /// Tried to get a file name without the extension part using `Path::file_stem()` but the file stem does not exist
     #[error("Tried to get a file name without the extension part using `Path::file_stem()` but the file stem does not exist")]
     InvalidFileStemName,
+    /// The file being read has exceeded the maximum file size set
+    #[error("The maximum size set for the resource has been exceeded")]
+    MaxResourceLengthExceeded,
 }
 
 impl From<std::io::Error> for PuppeteerError {

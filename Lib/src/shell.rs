@@ -1,8 +1,10 @@
-use crate::{ActiveAppEnv, PuppeteerError, PuppeteerResult, StaticCowStr, StaticStr, UiPaint};
-use base64ct::{Base64, Encoding};
+use crate::{
+    ActiveAppEnv, AssetFileLoader, FileProperties, PuppeteerError, PuppeteerResult, StaticCowStr,
+    StaticStr, UiPaint,
+};
 use file_format::FileFormat;
 use futures_lite::{AsyncReadExt, StreamExt};
-use smol::fs::{read_dir, File};
+use smol::fs::read_dir;
 use std::{borrow::Cow, io::ErrorKind, path::Path};
 use wry::application::window::Theme as WryTheme;
 
@@ -152,30 +154,22 @@ impl Shell {
         };
 
         while let Some(entry) = entries.try_next().await? {
-            let mut file = File::open(entry.path()).await?;
-            let mut buffer = Vec::<u8>::new();
+            let path = entry.path().to_path_buf().to_string_lossy().to_string();
 
-            file.read_to_end(&mut buffer).await?;
+            let resource = AssetFileLoader::new(&path).load().await?;
 
-            let file_format_detected = FileFormat::from_bytes(&buffer);
+            let file_format_detected = resource.format();
 
             if file_format_detected != FileFormat::WebOpenFontFormat2 {
                 return Err(PuppeteerError::InvalidFontExpectedWoff2);
             }
 
-            let font_name = entry.path().clone();
-            let font_stem = match font_name.file_stem() {
-                Some(file_stem) => file_stem,
-                None => return Err(PuppeteerError::InvalidFileStemName),
-            };
-
-            tracing::trace!("LOADED FONT: {:?}", &font_stem);
+            tracing::trace!("LOADED FONT: {:?}", &resource.name());
             app_env
                 .fonts
-                .push(StaticCowStr::Owned(font_stem.to_string_lossy().to_string()));
+                .push(StaticCowStr::Owned(resource.name().to_string()));
 
-            let font = Cow::Borrowed("data:application/font-woff2;base64,")
-                + Cow::Owned(Base64::encode_string(&buffer));
+            let font = resource.base64();
             let injector = Cow::Borrowed("var dataUri = \"")
                 + font
                 + "\";"
@@ -183,7 +177,7 @@ impl Shell {
                     r#"
                     var fontFace = new FontFace(""#,
                 )
-                + Cow::Owned(font_stem.to_string_lossy().to_string())
+                + resource.name()
                 + Cow::Borrowed(
                     r#"", `url(${dataUri})`, {
                         style: "normal",
