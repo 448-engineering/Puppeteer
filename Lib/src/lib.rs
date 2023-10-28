@@ -40,6 +40,9 @@ pub use html_utils::*;
 mod assets;
 pub use assets::*;
 
+mod utils;
+pub use assets::*;
+
 /// Reuse crates in the lib for better compatibility
 //
 pub use arrayvec;
