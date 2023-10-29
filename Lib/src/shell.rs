@@ -1,5 +1,5 @@
 use crate::{
-    ActiveAppEnv, AssetFileLoader, FileProperties, PuppeteerError, PuppeteerResult, StaticCowStr,
+    ActiveAppEnv, AssetFileLoader, AssetProperties, PuppeteerError, PuppeteerResult, StaticCowStr,
     StaticStr, UiPaint,
 };
 use file_format::FileFormat;

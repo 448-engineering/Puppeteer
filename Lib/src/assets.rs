@@ -1,4 +1,6 @@
-use crate::{PuppeteerError, PuppeteerResult, StaticCowStr};
+use crate::{
+    AssetProperties, CowStr, PuppeteerError, PuppeteerResult, StaticAssetProperties, StaticCowStr,
+};
 use base64ct::{Base64, Encoding};
 use bytes::{BufMut, BytesMut};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -11,32 +13,53 @@ pub const BUFFER_CAPACITY: usize = 1024 * 64; //16KiB
 /// The default resource size set to avoid high memory usage and data
 pub const DEFAULT_RESOURCE_SIZE: usize = 1024 * 1024; //1MiB
 
-/// Methods to detect file type and convert to encoding formats like base64
-pub trait FileProperties {
-    /// The name of the resource
-    fn name(&self) -> Cow<str>;
+/// An asset that has a static lifetime
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct StaticAsset {
+    /// The name of the asset
+    pub name: &'static str,
+    /// The bytes contained in the asset
+    pub bytes: &'static [u8],
+}
 
-    /// The [FileFormat] of the resource
-    fn format(&self) -> FileFormat;
+impl StaticAssetProperties for StaticAsset {
+    fn name(&self) -> &'static str {
+        self.name
+    }
 
-    /// The content bytes
-    fn bytes(&self) -> &BytesMut;
+    fn format(&self) -> FileFormat {
+        FileFormat::from_bytes(&self.bytes)
+    }
 
-    /// Base64 encoding for html
-    fn base64(&self) -> Cow<str>;
+    fn bytes(&self) -> &'static [u8] {
+        &self.bytes
+    }
+
+    fn base64(&self) -> StaticCowStr {
+        let media_type = self.format().media_type().to_owned();
+
+        Cow::Borrowed("data:")
+            + Cow::Owned(media_type)
+            + ";base64,"
+            + Cow::Owned(Base64::encode_string(&self.bytes))
+    }
+
+    fn hash(&self) -> blake3::Hash {
+        blake3::hash(&self.bytes)
+    }
 }
 
 /// An asset to be used in the app
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AssetFile {
+pub struct AssetFile<'p> {
     /// The name of the asset
-    pub name: StaticCowStr,
+    pub name: CowStr<'p>,
     /// The bytes contained in the asset
     pub bytes: BytesMut,
 }
 
-impl FileProperties for AssetFile {
-    fn name(&self) -> StaticCowStr {
+impl<'p> AssetProperties for AssetFile<'p> {
+    fn name(&self) -> CowStr {
         self.name.clone()
     }
 
@@ -55,6 +78,10 @@ impl FileProperties for AssetFile {
             + Cow::Owned(media_type)
             + ";base64,"
             + Cow::Owned(Base64::encode_string(&self.bytes))
+    }
+
+    fn hash(&self) -> blake3::Hash {
+        blake3::hash(&self.bytes)
     }
 }
 
@@ -100,7 +127,7 @@ impl<'p> AssetFileLoader<'p> {
     }
 
     /// Load the resource
-    pub async fn load(self) -> PuppeteerResult<AssetFile> {
+    pub async fn load(self) -> PuppeteerResult<AssetFile<'p>> {
         let mut path = Utf8PathBuf::new();
 
         if self.cargo_dir {

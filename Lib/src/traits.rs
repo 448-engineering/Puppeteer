@@ -1,9 +1,13 @@
 use crate::{ActiveAppEnv, ModifyView, Shell};
 use async_trait::async_trait;
+use bytes::BytesMut;
+use file_format::FileFormat;
 use std::borrow::Cow;
 
 /// A type that defines [Cow<'static, str>] for easier reuse
 pub type StaticCowStr = Cow<'static, str>;
+/// A type that defines [Cow<'p, str>] for easier reuse
+pub type CowStr<'p> = Cow<'p, str>;
 /// A type of &'static str
 pub type StaticStr = &'static str;
 
@@ -77,4 +81,40 @@ impl UiPaint for &str {
     fn to_html(&self) -> Cow<str> {
         Cow::Borrowed(self)
     }
+}
+
+/// Methods to detect file type and convert to encoding formats like base64
+pub trait AssetProperties {
+    /// The name of the resource
+    fn name(&self) -> Cow<str>;
+
+    /// The [FileFormat] of the resource
+    fn format(&self) -> FileFormat;
+
+    /// The content bytes
+    fn bytes(&self) -> &BytesMut;
+
+    /// Base64 encoding for html
+    fn base64(&self) -> Cow<str>;
+
+    /// Get the blake3 hash of the bytes
+    fn hash(&self) -> blake3::Hash;
+}
+
+/// Methods to detect file type and convert to encoding formats like base64
+pub trait StaticAssetProperties {
+    /// The name of the resource
+    fn name(&self) -> &'static str;
+
+    /// The [FileFormat] of the resource
+    fn format(&self) -> FileFormat;
+
+    /// The content bytes
+    fn bytes(&self) -> &'static [u8];
+
+    /// Base64 encoding for html
+    fn base64(&self) -> Cow<str>;
+
+    /// Get the blake3 hash of the bytes
+    fn hash(&self) -> blake3::Hash;
 }

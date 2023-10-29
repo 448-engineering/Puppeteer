@@ -1,28 +1,20 @@
-/// Concatenate several static strings at compile time
+/// Count the number of items inside a macro
 #[macro_export]
-macro_rules! concat_strs {
-    ( $( $str:expr ),* ) => {
-        {
-            const ARRAY_LEN: usize = count_args![$($str),*];
-            let mut outcome = arrayvec::ArrayString::<ARRAY_LEN>::new();
-
-            $( {
-                outcome.push_str($str)
-            })*
-
-            outcome
-        }
-    };
+macro_rules! items_counter {
+    ($name:ident) => { 1 };
+    ($first:ident, $($rest:ident),*) => {
+        1 + count_items!($($rest),*)
+    }
 }
 
-/// Count the number of values inside a declarative macro
+/// Include asset bytes at compile time
 #[macro_export]
-macro_rules! count_args {
-    ($($arg:expr),*) => {{
-        count_args!(@count $($arg),*)
+macro_rules! asset {
+    ($name:expr, $path:expr) => {{
+        let asset_path = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
+        puppeteer::StaticAsset {
+            name: $name,
+            bytes: asset_path,
+        }
     }};
-    (@count $($arg:expr),*) => {
-        <[()]>::len(&[$(count_args![@single $arg]),*])
-    };
-    (@single $_arg:expr) => { () };
 }

@@ -1,4 +1,4 @@
-use puppeteer::{AssetFileLoader, FileProperties};
+use puppeteer::{AssetFileLoader, AssetProperties, StaticAssetProperties};
 
 fn main() {
     smol::block_on(async {
@@ -13,7 +13,6 @@ fn main() {
         dbg!(&resource.format().media_type());
         dbg!(&resource.format().short_name());
         dbg!(&resource.name());
-        dbg!(&resource.base64());
 
         let resource = AssetFileLoader::new("frow.min.css")
             .add_dir("examples/assets")
@@ -26,6 +25,10 @@ fn main() {
         dbg!(&resource.format().media_type());
         dbg!(&resource.format().short_name());
         dbg!(&resource.name());
-        dbg!(&resource.base64());
+
+        let frowcss = puppeteer::asset!("frow.min", "examples/assets/frow.min.css");
+
+        dbg!(frowcss.name());
+        dbg!(frowcss.format().media_type());
     })
 }
