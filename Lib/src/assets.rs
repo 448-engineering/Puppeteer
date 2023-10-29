@@ -28,11 +28,11 @@ impl StaticAssetProperties for StaticAsset {
     }
 
     fn format(&self) -> FileFormat {
-        FileFormat::from_bytes(&self.bytes)
+        FileFormat::from_bytes(self.bytes)
     }
 
     fn bytes(&self) -> &'static [u8] {
-        &self.bytes
+        self.bytes
     }
 
     fn base64(&self) -> StaticCowStr {
@@ -41,11 +41,11 @@ impl StaticAssetProperties for StaticAsset {
         Cow::Borrowed("data:")
             + Cow::Owned(media_type)
             + ";base64,"
-            + Cow::Owned(Base64::encode_string(&self.bytes))
+            + Cow::Owned(Base64::encode_string(self.bytes))
     }
 
     fn hash(&self) -> blake3::Hash {
-        blake3::hash(&self.bytes)
+        blake3::hash(self.bytes)
     }
 }
 
