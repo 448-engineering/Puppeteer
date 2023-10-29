@@ -210,7 +210,7 @@ where
             .build(event_loop)?;
         Logging::new(app_env.app_name).log("INITIALIZED WINDOW");
 
-        let primary_monitor = window.primary_monitor();
+        let primary_monitor = event_loop.primary_monitor();
         let current_monitor = window.current_monitor();
 
         if let Some(monitor_found) = primary_monitor.as_ref() {
