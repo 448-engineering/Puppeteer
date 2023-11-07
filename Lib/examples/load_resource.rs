@@ -1,4 +1,4 @@
-use puppeteer::{AssetFileLoader, AssetProperties, StaticAssetProperties};
+use puppeteer::{path_from_manifest, AssetFileLoader, AssetProperties, StaticAssetProperties};
 
 fn main() {
     smol::block_on(async {
@@ -30,5 +30,16 @@ fn main() {
 
         dbg!(frowcss.name());
         dbg!(frowcss.format().media_type());
+
+        let _path = path_from_manifest!("examples/assets", "frow.min.css");
+
+        let counter = puppeteer::items_counter!("foos", "two");
+        assert_eq!(counter, 2usize);
+        let counter = puppeteer::items_counter!(1, 2, 3);
+        assert_eq!(counter, 3usize);
+
+        dbg!(puppeteer::concat_paths!(foo, bar, baz, foo.txt));
+
+        dbg!(puppeteer::manifest_paths!(foo, bar, baz, foo.txt));
     })
 }

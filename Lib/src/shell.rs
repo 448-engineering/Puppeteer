@@ -142,7 +142,6 @@ impl Shell {
         let mut entries = match read_dir(path_to_fonts).await {
             Ok(dir) => dir,
             Err(error) => {
-                dbg!(&error.to_string());
                 if error.kind() == ErrorKind::NotFound {
                     return Err(PuppeteerError::FontsDirNotFound);
                 } else if error.kind() == ErrorKind::PermissionDenied {
