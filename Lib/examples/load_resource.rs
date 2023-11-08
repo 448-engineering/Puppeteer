@@ -1,6 +1,4 @@
-use puppeteer::{
-    path_from_manifest, AssetFileLoader, AssetProperties,  StaticAssetProperties,
-};
+use puppeteer::{path_from_manifest, AssetFileLoader, AssetProperties, StaticAssetProperties};
 
 fn main() {
     smol::block_on(async {
@@ -45,7 +43,7 @@ fn main() {
         let assets = puppeteer::load_assets!(("frow.min", "assets/frow.min.css"));
         assert_eq!(
             "0b3ae879a79a09c1aa75f82b8f4a2482f08842b511b4b075484996e29cd7c3b0",
-            blake3::hash(&assets[0].bytes).to_hex().as_str()
+            blake3::hash(assets[0].bytes).to_hex().as_str()
         );
 
         dbg!(puppeteer::manifest_paths!("foo", "bar", "baz", "foo.txt"));
