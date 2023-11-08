@@ -3,6 +3,8 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/448-engineering/Puppeteer/master/Documentation/Puppeteer-Logo-Icon.svg"
 )]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! Puppeteer
 //! ![crates.io](https://img.shields.io/crates/v/puppeteer.svg) [![Docs](https://docs.rs/puppeteer/badge.svg)](https://docs.rs/puppeteer) [![Rust](https://github.com/448-engineering/Puppeteer/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/448-engineering/Puppeteer/actions/workflows/rust.yml)
 //!
