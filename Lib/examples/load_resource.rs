@@ -1,6 +1,5 @@
-use arrayvec::ArrayVec;
 use puppeteer::{
-    path_from_manifest, AssetFileLoader, AssetProperties, StaticAsset, StaticAssetProperties,
+    path_from_manifest, AssetFileLoader, AssetProperties,  StaticAssetProperties,
 };
 
 fn main() {
