@@ -20,6 +20,29 @@ macro_rules! asset {
     }};
 }
 
+/// Include asset bytes at compile time
+#[macro_export]
+macro_rules! load_assets {
+    ($(($name:expr, $path:expr)),*) => {{
+        const ITEMS_LEN: usize = [$(stringify!($name),)*].len();
+
+        use puppeteer::StaticAsset;
+
+        let mut outcome = arrayvec::ArrayVec::<StaticAsset, ITEMS_LEN>::new();
+
+        $({
+            const BYTES: &[u8] = include_bytes!($path);
+            const ASSET: StaticAsset = StaticAsset{
+                name: $name,
+                bytes: BYTES
+            };
+            outcome.push(ASSET);
+        })*;
+
+        outcome
+    }};
+}
+
 /// Include concatenate some paths.
 /// **NOTE** that if quotes are added to a &str they are considered characters,
 /// so use `concat_paths!(foo,bar)` instead of `concat_paths!("foo", "bar")`
@@ -27,12 +50,12 @@ macro_rules! asset {
 #[macro_export]
 macro_rules! concat_paths {
     ($($name:expr),*) => {{
-        const ARRAY_STRING_LEN: usize = 0 $(+ stringify!($name).len() + "/".len())+ ;
+        const ARRAY_STRING_LEN: usize = 0 $(+$name.len() + "/".len())+ ;
 
         let mut outcome =  arrayvec::ArrayString::<ARRAY_STRING_LEN>::new();
 
         $({
-            outcome.push_str(stringify!($name));
+            outcome.push_str($name);
             outcome.push('/');
         })*;
 
@@ -46,22 +69,20 @@ macro_rules! concat_paths {
 }
 
 /// Include concatenate some paths.
-/// **NOTE** that if quotes are added to a &str they are considered characters,
-/// so use `concat_paths!(foo,bar)` instead of `concat_paths!("foo", "bar")`
-/// since this would lead to `"foo"/"bar"` instead of `foo/bar`
+/// **NOTE** that this accepts only a &'static str
 #[macro_export]
 macro_rules! manifest_paths {
     ($($name:expr),*) => {{
         const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
         const SEPERATOR_LEN: usize = "/".len();
-        const ARRAY_STRING_LEN: usize = CARGO_MANIFEST_DIR.len() + SEPERATOR_LEN $(+ stringify!($name).len() + SEPERATOR_LEN)+ ;
+        const ARRAY_STRING_LEN: usize = CARGO_MANIFEST_DIR.len() + SEPERATOR_LEN $(+ $name.len() + SEPERATOR_LEN)+ ;
 
         let mut outcome =  arrayvec::ArrayString::<ARRAY_STRING_LEN>::new();
         outcome.push_str(CARGO_MANIFEST_DIR);
         outcome.push('/');
 
         $({
-            outcome.push_str(stringify!($name));
+            outcome.push_str($name);
             outcome.push('/');
         })*;
 
