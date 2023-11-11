@@ -55,8 +55,8 @@ pub enum PuppeteerError {
     )]
     FontsDirPermissionDenied,
     /// For webview only WOFF2 font format is supported.
-    #[error("The font path detected is not a valid `WOFF2` format for the web.")]
-    InvalidFontExpectedWoff2,
+    #[error("The font detected ({0:?}) is not a valid `WOFF2` format for the web.")]
+    InvalidFontExpectedWoff2(String),
     /// Tried to get a file name without the extension part using `Path::file_stem()` but the file stem does not exist
     #[error("Tried to get a file name without the extension part using `Path::file_stem()` but the file stem does not exist")]
     InvalidFileStemName,

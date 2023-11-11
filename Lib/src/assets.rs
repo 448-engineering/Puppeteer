@@ -14,12 +14,21 @@ pub const BUFFER_CAPACITY: usize = 1024 * 64; //16KiB
 pub const DEFAULT_RESOURCE_SIZE: usize = 1024 * 1024; //1MiB
 
 /// An asset that has a static lifetime
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StaticAsset {
     /// The name of the asset
     pub name: &'static str,
     /// The bytes contained in the asset
     pub bytes: &'static [u8],
+}
+
+impl core::fmt::Debug for StaticAsset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StaticAsset")
+            .field("name", &self.name)
+            .field("bytes", &self.hash())
+            .finish()
+    }
 }
 
 impl StaticAssetProperties for StaticAsset {
@@ -44,13 +53,14 @@ impl StaticAssetProperties for StaticAsset {
             + Cow::Owned(Base64::encode_string(self.bytes))
     }
 
+    /// The blake3 Hash of the bytes contained in [Self] field `bytes`
     fn hash(&self) -> blake3::Hash {
         blake3::hash(self.bytes)
     }
 }
 
 /// An asset to be used in the app
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AssetFile<'p> {
     /// The name of the asset
     pub name: CowStr<'p>,
@@ -80,8 +90,18 @@ impl<'p> AssetProperties for AssetFile<'p> {
             + Cow::Owned(Base64::encode_string(&self.bytes))
     }
 
+    /// The blake3 Hash of the bytes contained in [Self] field `bytes`
     fn hash(&self) -> blake3::Hash {
         blake3::hash(&self.bytes)
+    }
+}
+
+impl<'p> core::fmt::Debug for AssetFile<'p> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AssetFile")
+            .field("name", &self.name)
+            .field("bytes", &self.hash())
+            .finish()
     }
 }
 

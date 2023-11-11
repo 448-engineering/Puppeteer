@@ -1,9 +1,5 @@
-use crate::{
-    ActiveAppEnv, PuppeteerError, PuppeteerResult, StaticAssetProperties, StaticCowStr, StaticStr,
-    UiPaint,
-};
+use crate::{ActiveAppEnv, StaticAssetProperties, StaticCowStr, StaticStr, UiPaint};
 use file_format::FileFormat;
-use futures_lite::{self, AsyncReadExt, StreamExt};
 use std::borrow::Cow;
 use wry::application::window::Theme as WryTheme;
 
@@ -70,32 +66,6 @@ impl Shell {
         self
     }
 
-    /// Add all the styles in a certain directory `path` with the file names provided.
-    /// NOTE: CSS style sheets are cascading so the order in which the file names for
-    /// the styles are added is important.
-    pub async fn add_styles_dir(
-        mut self,
-        path: &str,
-        files: impl AsRef<[&str]>,
-    ) -> PuppeteerResult<Self> {
-        let paths = files
-            .as_ref()
-            .iter()
-            .map(|file| path.to_owned() + file + ".css")
-            .collect::<Vec<String>>();
-
-        while let Some(file) = futures_lite::stream::iter(&paths).next().await {
-            let mut file = smol::fs::File::open(file).await?;
-            let mut contents = String::new();
-
-            file.read_to_string(&mut contents).await?;
-
-            self.styles.push(contents.into());
-        }
-
-        Ok(self)
-    }
-
     /// Add the scripts in the `<body></body>` field
     pub fn add_script(mut self, script: StaticCowStr) -> Self {
         self.scripts.push(script);
@@ -131,7 +101,11 @@ impl Shell {
             let file_format_detected = font.format();
 
             if file_format_detected != FileFormat::WebOpenFontFormat2 {
-                panic!("{}", PuppeteerError::InvalidFontExpectedWoff2);
+                panic!(
+                    "Invalid font type `{:?}` for file `{}`",
+                    font.format(),
+                    font.name
+                );
             }
 
             tracing::info!("LOADED FONT: {:?}", &font.name());

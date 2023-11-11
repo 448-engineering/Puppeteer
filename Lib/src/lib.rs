@@ -49,7 +49,6 @@ pub use assets::*;
 //
 pub use arrayvec;
 pub use async_trait;
-pub use futures_lite;
 pub use smol;
 pub use thiserror;
 pub use tracing;

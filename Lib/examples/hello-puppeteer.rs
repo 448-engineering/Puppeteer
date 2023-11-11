@@ -25,10 +25,9 @@ fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    const FONTS: [StaticAsset; 3] = puppeteer::load_assets!(
-        ("frow.min", "assets/frow.min.css"),
+    const FONTS: [StaticAsset; 2] = puppeteer::load_assets!(
         ("centauri", "assets/fonts/centauri.woff2"),
-        ("rockville_solid", "assets/fonts/rockville_solid.woff2"),
+        ("warteg", "assets/fonts/warteg.woff2"),
     );
 
     smol::block_on(async {
@@ -153,8 +152,8 @@ impl Puppeteer for AppTest {
                 <div id="logo-icon" class="drag-region frow row-start p-5 col-xs-1-4"> { PUPPETEER_ICON }</div>
                 <div class="drag-region frow row-end col-xs-3-4"> { DEFAULT_WINDOW_ACTIONS }</div>
             </div>
-            <div class="frow"><h1 style="font-family: 'rockville_solid','sans-serif'">"HELLO from PUPPETEER"</h1></div>
-            <div class="frow"><h3 style="font-family: 'centauri','sans-serif'">"Nice Font :)"</h3></div>
+            <div class="frow"><h1 style="font-family: 'warteg','sans-serif'">"HELLO from PUPPETEER"</h1></div>
+            <div class="frow"><h3 style="font-family: 'centauri' ,'sans-serif'">"Nice Font :)"</h3></div>
             <div class="frow direction-column row-center">
                 <input class="frow col-md-1-2 mt-40" type="email" id="user_email" name="name" required placeholder="Enter Your Email Address" onkeydown="email_ops()"/>
 
