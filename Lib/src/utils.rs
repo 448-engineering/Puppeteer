@@ -28,7 +28,8 @@ macro_rules! load_assets {
 
         use puppeteer::StaticAsset;
 
-        let mut outcome = arrayvec::ArrayVec::<StaticAsset, ITEMS_LEN>::new();
+        let mut outcome = [StaticAsset{name: "", bytes: &[0u8]}; ITEMS_LEN];
+        let mut count = 0usize;
 
         $({
             const BYTES: &[u8] = include_bytes!($path);
@@ -36,7 +37,8 @@ macro_rules! load_assets {
                 name: $name,
                 bytes: BYTES
             };
-            outcome.push(ASSET);
+            outcome[count] = ASSET;
+            count += 1;
         })*;
 
         outcome
