@@ -35,7 +35,7 @@ fn main() {
         let counter = puppeteer::items_counter!(
             ("frow.min", "assets/frow.min.css"),
             ("centauri", "assets/fonts/centauri.woff2"),
-            ("rockville_solid", "assets/fonts/rockville_solid.woff2"),
+            ("warteg", "assets/fonts/warteg.woff2"),
         );
         assert_eq!(counter, 3usize);
         let counter = puppeteer::items_counter!(1, 2, 3);
@@ -44,7 +44,7 @@ fn main() {
         let assets = puppeteer::load_assets!(
             ("frow.min", "assets/frow.min.css"),
             ("centauri", "assets/fonts/centauri.woff2"),
-            ("rockville_solid", "assets/fonts/rockville_solid.woff2"),
+            ("warteg", "assets/fonts/warteg.woff2"),
         );
         assert_eq!(
             "0b3ae879a79a09c1aa75f82b8f4a2482f08842b511b4b075484996e29cd7c3b0",
@@ -55,7 +55,7 @@ fn main() {
             blake3::hash(assets[1].bytes).to_hex().as_str()
         );
         assert_eq!(
-            "53a3c3ce4bdb8062c464f624a72a8c7589cc04c612ffbfbf3b07e36e45249104",
+            "1ee55e0400b17f43438b4ca12a94fa83984323095fa6093e9e97ca6b13d906e6",
             blake3::hash(assets[2].bytes).to_hex().as_str()
         );
     })
