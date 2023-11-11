@@ -1,7 +1,7 @@
 /// Count the number of items inside a macro
 #[macro_export]
 macro_rules! items_counter {
-    ($($name:expr),*) => {
+    ($($name:expr),* $(,)?) => {
         {
            [$($name,)*].len()
         }
@@ -23,7 +23,7 @@ macro_rules! asset {
 /// Include asset bytes at compile time
 #[macro_export]
 macro_rules! load_assets {
-    ($(($name:expr, $path:expr)),*) => {{
+    ($(($name:expr, $path:expr)),* $(,)?) => {{
         const ITEMS_LEN: usize = [$(stringify!($name),)*].len();
 
         use puppeteer::StaticAsset;
@@ -49,7 +49,7 @@ macro_rules! load_assets {
 /// since this would lead to `"foo"/"bar"` instead of `foo/bar`
 #[macro_export]
 macro_rules! concat_paths {
-    ($($name:expr),*) => {{
+    ($($name:expr),* $(,)?) => {{
         const ARRAY_STRING_LEN: usize = 0 $(+$name.len() + "/".len())+ ;
 
         let mut outcome =  arrayvec::ArrayString::<ARRAY_STRING_LEN>::new();
@@ -72,7 +72,7 @@ macro_rules! concat_paths {
 /// **NOTE** that this accepts only a &'static str
 #[macro_export]
 macro_rules! manifest_paths {
-    ($($name:expr),*) => {{
+    ($($name:expr),* $(,)?) => {{
         const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
         const SEPERATOR_LEN: usize = "/".len();
         const ARRAY_STRING_LEN: usize = CARGO_MANIFEST_DIR.len() + SEPERATOR_LEN $(+ $name.len() + SEPERATOR_LEN)+ ;

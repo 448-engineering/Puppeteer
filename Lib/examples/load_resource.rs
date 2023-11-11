@@ -40,7 +40,11 @@ fn main() {
 
         dbg!(puppeteer::concat_paths!("foo", "bar", "baz", "foo.txt"));
 
-        let assets = puppeteer::load_assets!(("frow.min", "assets/frow.min.css"));
+        let assets = puppeteer::load_assets!(
+            ("frow.min", "assets/frow.min.css"),
+            ("centauri", "assets/fonts/centauri.woff2"),
+            ("rockville_solid", "assets/fonts/rockville_solid.woff2"),
+        );
         assert_eq!(
             "0b3ae879a79a09c1aa75f82b8f4a2482f08842b511b4b075484996e29cd7c3b0",
             blake3::hash(assets[0].bytes).to_hex().as_str()
