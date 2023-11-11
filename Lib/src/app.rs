@@ -1,8 +1,8 @@
 use crate::{
-    AppEnvironment, Logging, ModifyView, PuppeteerError, PuppeteerResult, StaticCowStr, UiPaint,
+    AppEnvironment, Logging, ModifyView, PuppeteerError, PuppeteerResult, StaticAsset, UiPaint,
     WindowResize,
 };
-use std::{marker::PhantomData, path::Path};
+use std::marker::PhantomData;
 use tracing::Level;
 use wry::{
     application::{
@@ -35,7 +35,7 @@ pub struct ActiveAppEnv {
     /// This is mostly useful for desktops where there could be multiple monitors connected
     pub available_monitors: Vec<MonitorHandle>,
     /// List all the fonts that were loaded by the app
-    pub fonts: Vec<StaticCowStr>,
+    pub fonts: &'static [StaticAsset],
 }
 
 /// This struct us used to build your app
@@ -68,17 +68,21 @@ where
                 primary_monitor: Option::default(),
                 current_monitor: Option::default(),
                 available_monitors: Vec::default(),
-                fonts: Vec::default(),
+                fonts: &[StaticAsset {
+                    name: "",
+                    bytes: &[0u8],
+                }],
             },
             phantom: PhantomData,
         }
     }
 
     /// Load fonts directory
-    pub async fn with_fonts_dir(mut self, path: impl AsRef<Path>) -> PuppeteerResult<Self> {
-        T::shell().await.load_fonts_dir(path, &mut self.env).await?;
+    pub fn with_fonts(mut self, fonts: &'static [StaticAsset]) -> Self {
+        self.env.fonts = fonts;
+        T::shell().add_fonts(&self.env);
 
-        Ok(self)
+        self
     }
 
     /// Start the event loop.
@@ -237,7 +241,7 @@ where
 
         let devtools_enabled = cfg!(debug_assertions);
 
-        let shell = smol::block_on(async { T::shell().await });
+        let shell = T::shell();
 
         let webview = WebViewBuilder::new(window)?
             .with_html(shell.to_html())?

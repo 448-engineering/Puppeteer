@@ -4,8 +4,8 @@ use puppeteer::{
     async_trait::{self},
     smol::lock::Mutex,
     tracing::{self, Level},
-    ActiveAppEnv, ContextMenu, ModifyView, Puppeteer, PuppeteerApp, Shell, DEFAULT_WINDOW_ACTIONS,
-    DEFAULT_WINDOW_ACTIONS_SCRIPT, DEFAULT_WINDOW_ACTIONS_STYLE,
+    ActiveAppEnv, ContextMenu, ModifyView, Puppeteer, PuppeteerApp, Shell, StaticAsset,
+    DEFAULT_WINDOW_ACTIONS, DEFAULT_WINDOW_ACTIONS_SCRIPT, DEFAULT_WINDOW_ACTIONS_STYLE,
 };
 use std::{borrow::Cow, collections::HashMap};
 use tracing_subscriber::FmtSubscriber;
@@ -25,14 +25,14 @@ fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
+    const FONTS: [StaticAsset; 2] = puppeteer::load_assets!(
+        ("centauri", "assets/fonts/centauri.woff2"),
+        ("warteg", "assets/fonts/warteg.woff2"),
+    );
+
     smol::block_on(async {
         PuppeteerApp::<AppTest>::init("Puppeteer Test App")
-            .with_fonts_dir(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/examples/assets/fonts"
-            ))
-            .await
-            .unwrap()
+            .with_fonts(&FONTS)
             .start()
             .await
             .unwrap()
@@ -111,7 +111,7 @@ function email_ops() {
 
 #[async_trait::async_trait]
 impl Puppeteer for AppTest {
-    async fn shell() -> Shell {
+    fn shell() -> Shell {
         let context_menu_script = ContextMenu::new()
             .add_id("context-menu-identifier")
             .build_script();
@@ -152,8 +152,8 @@ impl Puppeteer for AppTest {
                 <div id="logo-icon" class="drag-region frow row-start p-5 col-xs-1-4"> { PUPPETEER_ICON }</div>
                 <div class="drag-region frow row-end col-xs-3-4"> { DEFAULT_WINDOW_ACTIONS }</div>
             </div>
-            <div class="frow"><h1 style="font-family: 'rockville_solid','sans-serif'">"HELLO from PUPPETEER"</h1></div>
-            <div class="frow"><h3 style="font-family: 'centauri','sans-serif'">"Nice Font :)"</h3></div>
+            <div class="frow"><h1 style="font-family: 'warteg','sans-serif'">"HELLO from PUPPETEER"</h1></div>
+            <div class="frow"><h3 style="font-family: 'centauri' ,'sans-serif'">"Nice Font :)"</h3></div>
             <div class="frow direction-column row-center">
                 <input class="frow col-md-1-2 mt-40" type="email" id="user_email" name="name" required placeholder="Enter Your Email Address" onkeydown="email_ops()"/>
 
