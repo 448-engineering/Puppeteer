@@ -1,5 +1,5 @@
 use file_format::FileFormat;
-use puppeteer::{path_from_manifest, AssetFileLoader, AssetProperties, StaticAssetProperties};
+use puppeteer::{AssetFileLoader, AssetProperties, StaticAssetProperties};
 
 fn main() {
     smol::block_on(async {
@@ -32,17 +32,14 @@ fn main() {
         assert_eq!("frow.min", frowcss.name());
         assert_eq!("text/plain", frowcss.format().media_type());
 
-        let _path = path_from_manifest!("examples/assets", "frow.min.css");
-
-        let counter = puppeteer::items_counter!("foos", "two");
-        assert_eq!(counter, 2usize);
+        let counter = puppeteer::items_counter!(
+            ("frow.min", "assets/frow.min.css"),
+            ("centauri", "assets/fonts/centauri.woff2"),
+            ("rockville_solid", "assets/fonts/rockville_solid.woff2"),
+        );
+        assert_eq!(counter, 3usize);
         let counter = puppeteer::items_counter!(1, 2, 3);
         assert_eq!(counter, 3usize);
-
-        assert_eq!(
-            "foo/bar/baz/foo.txt",
-            &puppeteer::concat_paths!("foo", "bar", "baz", "foo.txt")
-        );
 
         let assets = puppeteer::load_assets!(
             ("frow.min", "assets/frow.min.css"),
@@ -60,11 +57,6 @@ fn main() {
         assert_eq!(
             "53a3c3ce4bdb8062c464f624a72a8c7589cc04c612ffbfbf3b07e36e45249104",
             blake3::hash(assets[2].bytes).to_hex().as_str()
-        );
-
-        assert_eq!(
-            format!("{}/foo/bar/baz/foo.txt", env!("CARGO_MANIFEST_DIR")).as_str(),
-            &puppeteer::manifest_paths!("foo", "bar", "baz", "foo.txt")
         );
     })
 }

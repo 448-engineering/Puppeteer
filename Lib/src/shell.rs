@@ -1,11 +1,10 @@
 use crate::{
-    ActiveAppEnv, AssetFileLoader, AssetProperties, PuppeteerError, PuppeteerResult, StaticCowStr,
-    StaticStr, UiPaint,
+    ActiveAppEnv, PuppeteerError, PuppeteerResult, StaticAssetProperties, StaticCowStr, StaticStr,
+    UiPaint,
 };
 use file_format::FileFormat;
-use futures_lite::{AsyncReadExt, StreamExt};
-use smol::fs::read_dir;
-use std::{borrow::Cow, io::ErrorKind, path::Path};
+use futures_lite::{self, AsyncReadExt, StreamExt};
+use std::borrow::Cow;
 use wry::application::window::Theme as WryTheme;
 
 /// The HTML element where all the app body will be injected
@@ -111,13 +110,6 @@ impl Shell {
         self
     }
 
-    /// Add font to the shell. The font is required to be Base64
-    pub fn add_fonts(mut self, font_bytes: &'static str) -> Self {
-        self.fonts.push(Cow::Borrowed(font_bytes));
-
-        self
-    }
-
     /// Get the head_links
     pub fn head_links(&self) -> &[StaticCowStr] {
         self.head_links.as_slice()
@@ -133,50 +125,25 @@ impl Shell {
         self.scripts.as_slice()
     }
 
-    /// Load fonts in a particular directory
-    pub async fn load_fonts_dir(
-        mut self,
-        path_to_fonts: impl AsRef<Path>,
-        app_env: &mut ActiveAppEnv,
-    ) -> PuppeteerResult<Self> {
-        let mut entries = match read_dir(path_to_fonts).await {
-            Ok(dir) => dir,
-            Err(error) => {
-                if error.kind() == ErrorKind::NotFound {
-                    return Err(PuppeteerError::FontsDirNotFound);
-                } else if error.kind() == ErrorKind::PermissionDenied {
-                    return Err(PuppeteerError::FontsDirPermissionDenied);
-                } else {
-                    return Err(error.into());
-                }
-            }
-        };
-
-        while let Some(entry) = entries.try_next().await? {
-            let path = entry.path().to_path_buf().to_string_lossy().to_string();
-
-            let resource = AssetFileLoader::new(&path).load().await?;
-
-            let file_format_detected = resource.format();
+    /// Add user specified fonts
+    pub fn add_fonts(mut self, app_env: &ActiveAppEnv) -> Self {
+        app_env.fonts.iter().for_each(|font| {
+            let file_format_detected = font.format();
 
             if file_format_detected != FileFormat::WebOpenFontFormat2 {
-                return Err(PuppeteerError::InvalidFontExpectedWoff2);
+                panic!("{}", PuppeteerError::InvalidFontExpectedWoff2);
             }
 
-            tracing::trace!("LOADED FONT: {:?}", &resource.name());
-            app_env
-                .fonts
-                .push(StaticCowStr::Owned(resource.name().to_string()));
+            tracing::info!("LOADED FONT: {:?}", &font.name());
 
-            let font = resource.base64();
             let injector = Cow::Borrowed("var dataUri = \"")
-                + font
+                + font.base64()
                 + "\";"
                 + Cow::Borrowed(
                     r#"
                     var fontFace = new FontFace(""#,
                 )
-                + resource.name()
+                + font.name()
                 + Cow::Borrowed(
                     r#"", `url(${dataUri})`, {
                         style: "normal",
@@ -187,9 +154,9 @@ impl Shell {
                     "#,
                 ); //FIXME Add styles for fonts here*/
             self.fonts.push(Cow::Owned(injector.to_string()));
-        }
+        });
 
-        Ok(self)
+        self
     }
 }
 

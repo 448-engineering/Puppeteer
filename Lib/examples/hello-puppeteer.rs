@@ -4,8 +4,8 @@ use puppeteer::{
     async_trait::{self},
     smol::lock::Mutex,
     tracing::{self, Level},
-    ActiveAppEnv, ContextMenu, ModifyView, Puppeteer, PuppeteerApp, Shell, DEFAULT_WINDOW_ACTIONS,
-    DEFAULT_WINDOW_ACTIONS_SCRIPT, DEFAULT_WINDOW_ACTIONS_STYLE,
+    ActiveAppEnv, ContextMenu, ModifyView, Puppeteer, PuppeteerApp, Shell, StaticAsset,
+    DEFAULT_WINDOW_ACTIONS, DEFAULT_WINDOW_ACTIONS_SCRIPT, DEFAULT_WINDOW_ACTIONS_STYLE,
 };
 use std::{borrow::Cow, collections::HashMap};
 use tracing_subscriber::FmtSubscriber;
@@ -25,14 +25,15 @@ fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
+    const FONTS: [StaticAsset; 3] = puppeteer::load_assets!(
+        ("frow.min", "assets/frow.min.css"),
+        ("centauri", "assets/fonts/centauri.woff2"),
+        ("rockville_solid", "assets/fonts/rockville_solid.woff2"),
+    );
+
     smol::block_on(async {
         PuppeteerApp::<AppTest>::init("Puppeteer Test App")
-            .with_fonts_dir(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/examples/assets/fonts"
-            ))
-            .await
-            .unwrap()
+            .with_fonts(&FONTS)
             .start()
             .await
             .unwrap()
@@ -111,7 +112,7 @@ function email_ops() {
 
 #[async_trait::async_trait]
 impl Puppeteer for AppTest {
-    async fn shell() -> Shell {
+    fn shell() -> Shell {
         let context_menu_script = ContextMenu::new()
             .add_id("context-menu-identifier")
             .build_script();

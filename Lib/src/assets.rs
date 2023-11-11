@@ -14,7 +14,7 @@ pub const BUFFER_CAPACITY: usize = 1024 * 64; //16KiB
 pub const DEFAULT_RESOURCE_SIZE: usize = 1024 * 1024; //1MiB
 
 /// An asset that has a static lifetime
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StaticAsset {
     /// The name of the asset
     pub name: &'static str,
