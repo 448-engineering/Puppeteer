@@ -76,5 +76,22 @@ fn main() {
             "1ee55e0400b17f43438b4ca12a94fa83984323095fa6093e9e97ca6b13d906e6",
             blake3::hash(assets[2].bytes).to_hex().as_str()
         );
+
+        assert_eq!(
+            "0b3ae879a79a09c1aa75f82b8f4a2482f08842b511b4b075484996e29cd7c3b0",
+            blake3::hash(puppeteer::static_str!("examples/assets/frow.min.css").as_bytes())
+                .to_hex()
+                .as_str()
+        );
+
+        assert_eq!(
+            1,
+            puppeteer::load_cow!("examples/assets/frow.min.css",).len()
+        );
+
+        assert_eq!(
+            1,
+            puppeteer::load_strs!("examples/assets/frow.min.css",).len()
+        );
     })
 }

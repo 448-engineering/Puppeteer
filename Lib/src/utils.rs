@@ -69,3 +69,53 @@ macro_rules! assets_from_manifest_dir {
         outcome
     }};
 }
+
+/// Include asset in UTF-8 format at compile time
+#[macro_export]
+macro_rules! static_str {
+    ($path:expr) => {{
+        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path))
+    }};
+}
+
+/// Load static strings
+#[macro_export]
+macro_rules! load_strs {
+    ($($path:expr),* $(,)?) => {{
+        const ITEMS_LEN: usize = [$(stringify!($path),)*].len();
+
+        use puppeteer::StaticAsset;
+
+        let mut outcome = [""; ITEMS_LEN];
+        let mut count = 0usize;
+
+        $({
+            outcome[count] = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
+            count += 1;
+        })*;
+
+        outcome
+    }};
+}
+
+/// Load strings within a Clone-on-Write with a `'static` lifetime styles
+#[macro_export]
+macro_rules! load_cow {
+    ($($path:expr),* $(,)?) => {{
+        const ITEMS_LEN: usize = [$(stringify!($path),)*].len();
+
+        use puppeteer::{StaticAsset, StaticCowStr};
+
+        let mut outcome = [StaticCowStr::Borrowed(""); ITEMS_LEN];
+        let mut count = 0usize;
+
+        $({
+            outcome[count] = StaticCowStr::Borrowed(
+                include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path))
+            );
+            count += 1;
+        })*;
+
+        outcome
+    }};
+}
