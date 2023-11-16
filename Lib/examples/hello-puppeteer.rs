@@ -25,9 +25,9 @@ fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    const FONTS: [StaticAsset; 2] = puppeteer::load_assets!(
-        ("centauri", "assets/fonts/centauri.woff2"),
-        ("warteg", "assets/fonts/warteg.woff2"),
+    const FONTS: [StaticAsset; 2] = puppeteer::assets_from_manifest_dir!(
+        ("centauri", "examples/assets/fonts/centauri.woff2"),
+        ("warteg", "examples/assets/fonts/warteg.woff2"),
     );
 
     smol::block_on(async {
