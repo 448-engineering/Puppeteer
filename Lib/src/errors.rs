@@ -60,6 +60,9 @@ pub enum PuppeteerError {
     /// The file being read has exceeded the maximum file size set
     #[error("The maximum size set for the resource has been exceeded")]
     MaxResourceLengthExceeded,
+    /// Encountered a GTK error on Linux
+    #[error("Encountered a GTK error on Linux")]
+    GtkError,
 }
 
 impl From<std::io::Error> for PuppeteerError {

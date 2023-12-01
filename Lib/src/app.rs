@@ -278,7 +278,11 @@ where
         let webview_builder = {
             use tao::platform::unix::WindowExtUnix;
             use wry::WebViewBuilderExtUnix;
-            WebViewBuilder::new_gtk(window.gtk_window())
+            let vbox = match window.default_vbox() {
+                Some(vbox) => vbox,
+                None => return Err(PuppeteerError::GtkError),
+            };
+            WebViewBuilder::new_gtk(vbox)
         };
 
         let webview = webview_builder
