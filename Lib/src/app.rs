@@ -3,20 +3,18 @@ use crate::{
     WindowResize,
 };
 use std::marker::PhantomData;
-use tracing::Level;
-use wry::{
-    application::{
-        dpi::PhysicalSize,
-        event::{Event, StartCause, WindowEvent},
-        event_loop::{
-            ControlFlow, EventLoop, EventLoopBuilder, EventLoopClosed, EventLoopProxy,
-            EventLoopWindowTarget,
-        },
-        monitor::MonitorHandle,
-        window::{Window, WindowBuilder},
+use tao::{
+    dpi::PhysicalSize,
+    event::{Event, StartCause, WindowEvent},
+    event_loop::{
+        ControlFlow, EventLoop, EventLoopBuilder, EventLoopClosed, EventLoopProxy,
+        EventLoopWindowTarget,
     },
-    webview::{WebView, WebViewBuilder},
+    monitor::MonitorHandle,
+    window::{Window, WindowBuilder},
 };
+use tracing::Level;
+use wry::{WebView, WebViewBuilder};
 
 /// Environment variables set when the app is initialized
 #[derive(Debug, Clone)]
@@ -89,7 +87,7 @@ where
     /// This method is async runtime agnostic and can be used with any
     /// Rust async runtime that respects `std::future::Future`
     pub async fn start(mut self) -> PuppeteerResult<()> {
-        let webview =
+        let (webview, window) =
             PuppeteerApp::<T>::create_webview(&self.event_loop, self.proxy.clone(), &mut self.env)?;
         let splash_html = T::splashscreen();
 
@@ -104,7 +102,7 @@ where
         let app_env = self.env.clone();
 
         smol::spawn(async move {
-            let init = T::init(&app_env).await;
+            let init = T::init(&app_env.clone()).await;
 
             PuppeteerApp::<T>::proxy_error_handler(init_proxy.send_event(init), self.env.app_name)
         })
@@ -118,9 +116,7 @@ where
                     Event::NewEvents(StartCause::Init) => {
                         Logging::new(self.env.app_name).log("LOADED SPLASHSCREEN");
 
-                        match WindowResize::ResizePercent(T::splash_window_size())
-                            .get_op(webview.as_ref())
-                        {
+                        match WindowResize::ResizePercent(T::splash_window_size()).get_op(&window) {
                             Ok(_) => (),
                             Err(error) => {
                                 Logging::new(self.env.app_name)
@@ -150,22 +146,45 @@ where
                         *control_flow = ControlFlow::Exit;
                     }
                     Event::UserEvent(update_view) => {
-                        if update_view == ModifyView::CloseWindow {
-                            webview.take();
-                            Logging::new(self.env.app_name).log("REQUESTED TO CLOSE WINDOW");
+                        match update_view {
+                            ModifyView::CloseWindow => {
+                                webview.take();
+                                Logging::new(self.env.app_name).log("REQUESTED TO CLOSE WINDOW");
 
-                            *control_flow = ControlFlow::Exit;
+                                *control_flow = ControlFlow::Exit;
 
-                            std::process::exit(0)
+                                std::process::exit(0)
+                            }
+                            ModifyView::MaximizeWindow => window.set_minimized(true),
+                            ModifyView::MinimizeWindow => {
+                                window.set_maximized(!window.is_maximized())
+                            }
+                            ModifyView::DragWindow => match window.drag_window() {
+                                Ok(_) => (),
+                                Err(error) => {
+                                    let error = T::error_handler(error);
+
+                                    let local_proxy = self.proxy.clone();
+
+                                    smol::spawn(async move {
+                                        let outcome = error.await;
+                                        PuppeteerApp::<T>::proxy_error_handler(
+                                            local_proxy.send_event(outcome),
+                                            self.env.app_name,
+                                        );
+                                    })
+                                    .detach();
+                                }
+                            },
+
+                            _ => (),
                         }
 
                         if !app_webview {
                             app_webview = true;
                             Logging::new(self.env.app_name).log("INITIALIZED ROOT PAGE");
 
-                            match WindowResize::ResizePercent(T::window_size())
-                                .get_op(webview.as_ref())
-                            {
+                            match WindowResize::ResizePercent(T::window_size()).get_op(&window) {
                                 Ok(_) => (),
                                 Err(error) => {
                                     Logging::new(self.env.app_name)
@@ -176,7 +195,7 @@ where
                                 }
                             }
 
-                            match WindowResize::Center.get_op(webview.as_ref()) {
+                            match WindowResize::Center.get_op(&window) {
                                 Ok(_) => (),
                                 Err(error) => {
                                     Logging::new(self.env.app_name)
@@ -207,7 +226,7 @@ where
         event_loop: &EventLoopWindowTarget<ModifyView>,
         proxy: EventLoopProxy<ModifyView>,
         app_env: &mut ActiveAppEnv,
-    ) -> PuppeteerResult<WebView> {
+    ) -> PuppeteerResult<(WebView, Window)> {
         let window = WindowBuilder::new()
             .with_title(app_env.app_name)
             .with_decorations(false)
@@ -243,51 +262,56 @@ where
 
         let shell = T::shell();
 
-        let webview = WebViewBuilder::new(window)?
+        #[cfg(any(
+            target_os = "windows",
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "android"
+        ))]
+        let webview_builder = WebViewBuilder::new(&window);
+        #[cfg(not(any(
+            target_os = "windows",
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "android"
+        )))]
+        let webview_builder = {
+            use tao::platform::unix::WindowExtUnix;
+            use wry::WebViewBuilderExtUnix;
+            WebViewBuilder::new_gtk(window.gtk_window())
+        };
+
+        let webview = webview_builder
             .with_html(shell.to_html())?
             .with_devtools(devtools_enabled)
             .with_ipc_handler(handler)
             .build()?;
 
-        Ok(webview)
+        Ok((webview, window))
     }
 
     fn handler(
         proxy: EventLoopProxy<ModifyView>,
         app_env: ActiveAppEnv,
-    ) -> impl Fn(&Window, String) {
-        move |window: &Window, req: String| match req.as_str() {
-            "minimize" => window.set_minimized(true),
-            "maximize" => window.set_maximized(!window.is_maximized()),
-            "drag_window" => match window.drag_window() {
-                Ok(_) => (),
-                Err(error) => {
-                    let error = T::error_handler(error);
+    ) -> Box<dyn Fn(String) + 'static> {
+        let outcome = move |req: String| match req.as_str() {
+            "minimize" => PuppeteerApp::<T>::proxy_error_handler(
+                proxy.send_event(ModifyView::MinimizeWindow),
+                app_env.app_name,
+            ),
 
-                    let local_app_env = app_env.clone();
-                    let local_proxy = proxy.clone();
-
-                    smol::spawn(async move {
-                        let outcome = error.await;
-                        PuppeteerApp::<T>::proxy_error_handler(
-                            local_proxy.send_event(outcome),
-                            local_app_env.app_name,
-                        );
-                    })
-                    .detach();
-                }
-            },
-            "close_window" => {
-                let local_proxy = proxy.clone();
-
-                smol::spawn(async move {
-                    PuppeteerApp::<T>::proxy_error_handler(
-                        local_proxy.send_event(ModifyView::CloseWindow),
-                        app_env.app_name,
-                    );
-                })
-                .detach()
-            }
+            "maximize" => PuppeteerApp::<T>::proxy_error_handler(
+                proxy.send_event(ModifyView::MaximizeWindow),
+                app_env.app_name,
+            ),
+            "drag_window" => PuppeteerApp::<T>::proxy_error_handler(
+                proxy.send_event(ModifyView::DragWindow),
+                app_env.app_name,
+            ),
+            "close_window" => PuppeteerApp::<T>::proxy_error_handler(
+                proxy.send_event(ModifyView::CloseWindow),
+                app_env.app_name,
+            ),
             _ => {
                 let mut req_parse = T::parse(&req);
 
@@ -303,7 +327,9 @@ where
                 })
                 .detach();
             }
-        }
+        };
+
+        Box::new(outcome)
     }
 
     fn proxy_error_handler(

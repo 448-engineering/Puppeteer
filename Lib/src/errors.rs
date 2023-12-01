@@ -1,13 +1,10 @@
 use std::io::ErrorKind;
-
-use thiserror::Error;
-use wry::{
-    application::{
-        error::{ExternalError, OsError},
-        event_loop::EventLoopClosed,
-    },
-    Error as WryError,
+use tao::{
+    error::{ExternalError, OsError},
+    event_loop::EventLoopClosed,
 };
+use thiserror::Error;
+use wry::Error as WryError;
 
 /// A wrapper to `Result<T, PuppeteerError>`
 pub type PuppeteerResult<T> = Result<T, PuppeteerError>;
