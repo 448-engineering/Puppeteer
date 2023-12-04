@@ -1,13 +1,10 @@
 use std::io::ErrorKind;
-
-use thiserror::Error;
-use wry::{
-    application::{
-        error::{ExternalError, OsError},
-        event_loop::EventLoopClosed,
-    },
-    Error as WryError,
+use tao::{
+    error::{ExternalError, OsError},
+    event_loop::EventLoopClosed,
 };
+use thiserror::Error;
+use wry::Error as WryError;
 
 /// A wrapper to `Result<T, PuppeteerError>`
 pub type PuppeteerResult<T> = Result<T, PuppeteerError>;
@@ -63,6 +60,9 @@ pub enum PuppeteerError {
     /// The file being read has exceeded the maximum file size set
     #[error("The maximum size set for the resource has been exceeded")]
     MaxResourceLengthExceeded,
+    /// Encountered a GTK error on Linux
+    #[error("Encountered a GTK error on Linux")]
+    GtkError,
 }
 
 impl From<std::io::Error> for PuppeteerError {

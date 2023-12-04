@@ -1,7 +1,7 @@
 use crate::{ActiveAppEnv, StaticAssetProperties, StaticCowStr, StaticStr, UiPaint};
 use file_format::FileFormat;
 use std::borrow::Cow;
-use wry::application::window::Theme as WryTheme;
+use tao::window::Theme as WryTheme;
 
 /// The HTML element where all the app body will be injected
 pub const PUPPETEER_APP_ELEMENT: &str = r#"<div id="puppeteer_app"></div>"#;

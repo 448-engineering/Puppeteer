@@ -1,8 +1,8 @@
 use crate::{PuppeteerError, PuppeteerResult, UiPaint};
 use std::borrow::Cow;
-use wry::{
-    application::dpi::{PhysicalPosition, PhysicalSize},
-    webview::WebView,
+use tao::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    window::Window,
 };
 
 /// An window resize operation
@@ -22,21 +22,15 @@ pub enum WindowResize {
 
 impl WindowResize {
     /// Match the operation to it's resize values and perform resizing
-    pub fn get_op(&self, webview: Option<&WebView>) -> PuppeteerResult<()> {
-        let window = if let Some(webview_exists) = webview.as_ref() {
-            webview_exists.window()
-        } else {
-            return Err(PuppeteerError::WebViewDoesNotExist);
-        };
-
+    pub fn get_op(&self, window: &Window) -> PuppeteerResult<()> {
         if !window.is_resizable() {
             return Err(PuppeteerError::WindowIsNotResizable);
         }
 
         match self {
-            Self::FullScreen => window.set_fullscreen(Some(
-                wry::application::window::Fullscreen::Borderless(window.current_monitor()),
-            )),
+            Self::FullScreen => window.set_fullscreen(Some(tao::window::Fullscreen::Borderless(
+                window.current_monitor(),
+            ))),
             Self::Maximize => {
                 if !window.is_maximized() {
                     window.set_maximized(true)
@@ -98,6 +92,12 @@ pub enum ModifyView {
     },
     /// This event closes the window and exits the EventLoop
     CloseWindow,
+    /// Maximize the current window
+    MaximizeWindow,
+    /// Minimize current window
+    MinimizeWindow,
+    /// Drag the window by clicking and holding the title bar
+    DragWindow,
     /// Perform No Action on the data, this is useful for reactive UI like taking data from input field in real time
     Skip,
 }
@@ -133,6 +133,9 @@ impl UiPaint for ModifyView {
                     + "`;"
             }
             Self::CloseWindow => Cow::Borrowed("Close Window Requested"),
+            Self::MaximizeWindow => Cow::Borrowed("Maximize Window Requested"),
+            Self::MinimizeWindow => Cow::Borrowed("Minimize Window Requested"),
+            Self::DragWindow => Cow::Borrowed("Dragging Window..."),
             Self::Skip => Cow::Borrowed("Skipped"),
         }
     }
