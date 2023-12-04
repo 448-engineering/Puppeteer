@@ -66,6 +66,16 @@ impl Shell {
         self
     }
 
+    /// Add multiple stypes in the `<style></style>` field
+    pub fn add_const_styles(mut self, styles: impl AsRef<[&'static str]>) -> Self {
+        styles
+            .as_ref()
+            .iter()
+            .for_each(|style| self.styles.push(Cow::Borrowed(style)));
+
+        self
+    }
+
     /// Add the scripts in the `<body></body>` field
     pub fn add_script(mut self, script: StaticCowStr) -> Self {
         self.scripts.push(script);
