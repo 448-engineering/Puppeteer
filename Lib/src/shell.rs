@@ -90,6 +90,16 @@ impl Shell {
         self
     }
 
+    /// Add the scripts in the `<body></body>` field
+    pub fn add_const_scripts(mut self, scripts: impl AsRef<[&'static str]>) -> Self {
+        scripts
+            .as_ref()
+            .iter()
+            .for_each(|script| self.scripts.push(Cow::Borrowed(script)));
+
+        self
+    }
+
     /// Get the head_links
     pub fn head_links(&self) -> &[StaticCowStr] {
         self.head_links.as_slice()
