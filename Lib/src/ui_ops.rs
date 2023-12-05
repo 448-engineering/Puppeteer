@@ -82,13 +82,13 @@ impl WindowResize {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ModifyView {
     /// Replaces content in the app using the provided ID
-    ReplaceApp(Cow<'static, str>),
+    ReplaceApp(String),
     /// Replaces the node with the specified ID
     ReplaceNodeWithId {
         /// The `id` of the node being replaced
-        id: &'static str,
+        id: String,
         /// The `content to replace the content in target node
-        content: Cow<'static, str>,
+        content: String,
     },
     /// This event closes the window and exits the EventLoop
     CloseWindow,
@@ -105,14 +105,14 @@ pub enum ModifyView {
 impl ModifyView {
     /// Replace the nodes in the body of the app leaving the [crate::Shell] intact
     pub fn replace_app(content: &'static dyn UiPaint) -> Self {
-        ModifyView::ReplaceApp(content.to_html())
+        ModifyView::ReplaceApp(content.to_html().to_string())
     }
 
     /// Replace the node with the specified ID
     pub fn replace_with_id(id: &'static str, content: &'static dyn UiPaint) -> Self {
         ModifyView::ReplaceNodeWithId {
-            id,
-            content: content.to_html(),
+            id: id.to_string(),
+            content: content.to_html().to_string(),
         }
     }
 }
@@ -127,7 +127,7 @@ impl UiPaint for ModifyView {
             }
             Self::ReplaceNodeWithId { id, content } => {
                 Cow::Borrowed(r#"document.getElementById(""#)
-                    + *id
+                    + Cow::Owned(id.to_owned())
                     + r#"").innerHTML=`"#
                     + content.as_ref()
                     + "`;"

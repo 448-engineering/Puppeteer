@@ -138,7 +138,7 @@ impl Puppeteer for AppTest {
             </div>
         );
 
-        ModifyView::ReplaceApp(Cow::Owned(splash_html))
+        ModifyView::ReplaceApp(splash_html)
     }
 
     async fn init(app_env: &ActiveAppEnv) -> ModifyView {
@@ -161,7 +161,7 @@ impl Puppeteer for AppTest {
             </div>
         );
 
-        ModifyView::ReplaceApp(Cow::Owned(title_bar))
+        ModifyView::ReplaceApp(title_bar)
     }
 
     fn parse(message: &str) -> Self {
