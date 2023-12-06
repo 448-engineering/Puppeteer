@@ -1,8 +1,7 @@
 use crate::{
-    AppEnvironment, Logging, ModifyView, PuppeteerError, PuppeteerResult, StaticAsset, UiPaint,
-    WindowResize,
+    AppEnvironment, Logging, ModifyView, Puppeteer, PuppeteerError, PuppeteerResult, StaticAsset,
+    UiEvent, UiPaint,
 };
-use std::marker::PhantomData;
 use tao::{
     dpi::PhysicalSize,
     event::{Event, StartCause, WindowEvent},
@@ -37,21 +36,20 @@ pub struct ActiveAppEnv {
 }
 
 /// This struct us used to build your app
-pub struct PuppeteerApp<T> {
+pub struct PuppeteerApp<T: Puppeteer + 'static + Send + Sync> {
     /// The app environment
     pub env: ActiveAppEnv,
-    event_loop: EventLoop<ModifyView>,
-    proxy: EventLoopProxy<ModifyView>,
-    phantom: PhantomData<T>,
+    event_loop: EventLoop<UiEvent<T>>,
+    proxy: EventLoopProxy<UiEvent<T>>,
 }
 
 impl<T> PuppeteerApp<T>
 where
-    T: crate::Puppeteer + 'static + Send + Sync,
+    T: Puppeteer + 'static + Send + Sync,
 {
     /// Initializes the Puppeteer app
     pub fn init(app_name: &'static str) -> Self {
-        let event_loop = EventLoopBuilder::<ModifyView>::with_user_event().build();
+        let event_loop = EventLoopBuilder::<UiEvent<T>>::with_user_event().build();
         Logging::new(app_name).log("INITIALIZED EVENT_LOOP");
 
         let proxy = event_loop.create_proxy();
@@ -71,7 +69,6 @@ where
                     bytes: &[0u8],
                 }],
             },
-            phantom: PhantomData,
         }
     }
 
@@ -89,24 +86,6 @@ where
     pub async fn start(mut self) -> PuppeteerResult<()> {
         let (webview, window) =
             PuppeteerApp::<T>::create_webview(&self.event_loop, self.proxy.clone(), &mut self.env)?;
-        let splash_html = T::splashscreen();
-
-        Self::eval_script_exit_on_error(self.env.app_name, &webview, &splash_html.to_html());
-
-        let mut webview = Some(webview);
-
-        let mut app_webview = false;
-
-        let init_proxy = self.proxy.clone();
-
-        let app_env = self.env.clone();
-
-        smol::spawn(async move {
-            let init = T::init(&app_env.clone()).await;
-
-            PuppeteerApp::<T>::proxy_error_handler(init_proxy.send_event(init), self.env.app_name)
-        })
-        .detach();
 
         self.event_loop
             .run(move |event, _event_loop, control_flow| {
@@ -114,117 +93,127 @@ where
 
                 match event {
                     Event::NewEvents(StartCause::Init) => {
-                        Logging::new(self.env.app_name).log("LOADED SPLASHSCREEN");
-
-                        match WindowResize::ResizePercent(T::splash_window_size()).get_op(&window) {
-                            Ok(_) => (),
-                            Err(error) => {
-                                Logging::new(self.env.app_name)
-                                    .with_level(Level::ERROR)
-                                    .log(error.to_string().as_str());
-
-                                std::process::exit(1);
-                            }
-                        }
-
                         let view_data = T::splashscreen();
 
-                        let webview =
-                            Self::get_webview_log_error(self.env.app_name, webview.as_ref());
+                        Self::eval_script_exit_on_error(self.env.app_name, &webview, &view_data);
 
-                        Self::eval_script_exit_on_error(
-                            self.env.app_name,
-                            webview,
-                            &view_data.to_html(),
+                        PuppeteerApp::<T>::send_event(
+                            self.proxy.clone(),
+                            self.env.clone(),
+                            UiEvent::Init,
                         );
                     }
                     Event::WindowEvent {
                         event: WindowEvent::CloseRequested,
                         ..
                     } => {
-                        webview.take();
                         *control_flow = ControlFlow::Exit;
                     }
-                    Event::UserEvent(update_view) => {
-                        match update_view {
-                            ModifyView::CloseWindow => {
-                                webview.take();
-                                Logging::new(self.env.app_name).log("REQUESTED TO CLOSE WINDOW");
-
-                                *control_flow = ControlFlow::Exit;
-
-                                std::process::exit(0)
-                            }
-                            ModifyView::MaximizeWindow => window.set_minimized(true),
-                            ModifyView::MinimizeWindow => {
-                                window.set_maximized(!window.is_maximized())
-                            }
-                            ModifyView::DragWindow => match window.drag_window() {
-                                Ok(_) => (),
-                                Err(error) => {
-                                    let error = T::error_handler(error);
-
-                                    let local_proxy = self.proxy.clone();
-
-                                    smol::spawn(async move {
-                                        let outcome = error.await;
-                                        PuppeteerApp::<T>::proxy_error_handler(
-                                            local_proxy.send_event(outcome),
-                                            self.env.app_name,
-                                        );
-                                    })
-                                    .detach();
-                                }
-                            },
-
-                            _ => (),
+                    Event::UserEvent(update_view) => match update_view {
+                        UiEvent::Init => {
+                            PuppeteerApp::<T>::send_init_event(
+                                self.proxy.clone(),
+                                self.env.clone(),
+                            );
                         }
+                        UiEvent::Close => {
+                            Logging::new(self.env.app_name).log("REQUESTED TO CLOSE WINDOW");
 
-                        if !app_webview {
-                            app_webview = true;
-                            Logging::new(self.env.app_name).log("INITIALIZED ROOT PAGE");
+                            *control_flow = ControlFlow::Exit;
 
-                            match WindowResize::ResizePercent(T::window_size()).get_op(&window) {
-                                Ok(_) => (),
-                                Err(error) => {
-                                    Logging::new(self.env.app_name)
-                                        .with_level(Level::ERROR)
-                                        .log(error.to_string().as_str());
-
-                                    std::process::exit(1);
-                                }
-                            }
-
-                            match WindowResize::Center.get_op(&window) {
-                                Ok(_) => (),
-                                Err(error) => {
-                                    Logging::new(self.env.app_name)
-                                        .with_level(Level::ERROR)
-                                        .log(error.to_string().as_str());
-
-                                    std::process::exit(1);
-                                }
+                            std::process::exit(0)
+                        }
+                        UiEvent::Maximize => window.set_minimized(true),
+                        UiEvent::Minimize => window.set_maximized(!window.is_maximized()),
+                        UiEvent::Drag => {
+                            if window.drag_window().is_err() {
+                                PuppeteerApp::<T>::send_event(
+                                    self.proxy.clone(),
+                                    self.env.clone(),
+                                    UiEvent::Error(PuppeteerError::TaoEventLoopClosed),
+                                );
                             }
                         }
+                        UiEvent::Error(error) => {
+                            let app_env = self.env.clone();
+                            let local_proxy = self.proxy.clone();
 
-                        let view_data = update_view.to_html();
+                            smol::spawn(async move {
+                                let outcome = T::error_handler(error).await;
 
-                        let webview =
-                            Self::get_webview_log_error(self.env.app_name, webview.as_ref());
-
-                        Self::eval_script_exit_on_error(
-                            self.env.app_name,
-                            webview,
-                            &view_data.to_html(),
-                        );
-                    }
+                                PuppeteerApp::<T>::send_event(
+                                    local_proxy,
+                                    app_env,
+                                    UiEvent::Paint(outcome),
+                                );
+                            })
+                            .detach();
+                        }
+                        UiEvent::Custom(custom_event) => {
+                            PuppeteerApp::<T>::send_event_from_future(
+                                self.proxy.clone(),
+                                self.env.clone(),
+                                custom_event,
+                            );
+                        }
+                        UiEvent::Paint(paint_data) => match paint_data {
+                            ModifyView::ComputeWithIdData { func, .. } => {
+                                PuppeteerApp::<T>::callback_script_by_id(
+                                    self.env.app_name,
+                                    &webview,
+                                    self.proxy.clone(),
+                                    paint_data,
+                                    func,
+                                )
+                            }
+                            _ => PuppeteerApp::<T>::eval_script_exit_on_error(
+                                self.env.app_name,
+                                &webview,
+                                &paint_data,
+                            ),
+                        },
+                    },
                     _ => (),
                 }
             });
     }
+
+    fn send_init_event(proxy: EventLoopProxy<UiEvent<T>>, app_env: ActiveAppEnv) {
+        smol::spawn(async move {
+            let outcome = T::init(&app_env).await;
+            PuppeteerApp::<T>::proxy_error_handler(
+                proxy.send_event(UiEvent::Paint(outcome)),
+                app_env.app_name,
+            );
+        })
+        .detach()
+    }
+
+    fn send_event_from_future(
+        proxy: EventLoopProxy<UiEvent<T>>,
+        app_env: ActiveAppEnv,
+        mut event: T,
+    ) {
+        smol::spawn(async move {
+            let outcome = event.event_handler(&app_env).await;
+            PuppeteerApp::<T>::proxy_error_handler(
+                proxy.send_event(UiEvent::Paint(outcome)),
+                app_env.app_name,
+            );
+        })
+        .detach()
+    }
+
+    fn send_event(proxy: EventLoopProxy<UiEvent<T>>, app_env: ActiveAppEnv, event: UiEvent<T>) {
+        smol::spawn(async move {
+            PuppeteerApp::<T>::proxy_error_handler(proxy.send_event(event), app_env.app_name);
+        })
+        .detach();
+    }
+
     fn create_webview(
-        event_loop: &EventLoopWindowTarget<ModifyView>,
-        proxy: EventLoopProxy<ModifyView>,
+        event_loop: &EventLoopWindowTarget<UiEvent<T>>,
+        proxy: EventLoopProxy<UiEvent<T>>,
         app_env: &mut ActiveAppEnv,
     ) -> PuppeteerResult<(WebView, Window)> {
         let window = WindowBuilder::new()
@@ -295,41 +284,34 @@ where
     }
 
     fn handler(
-        proxy: EventLoopProxy<ModifyView>,
+        proxy: EventLoopProxy<UiEvent<T>>,
         app_env: ActiveAppEnv,
     ) -> Box<dyn Fn(String) + 'static> {
         let outcome = move |req: String| match req.as_str() {
             "minimize" => PuppeteerApp::<T>::proxy_error_handler(
-                proxy.send_event(ModifyView::MinimizeWindow),
+                proxy.send_event(UiEvent::Minimize),
                 app_env.app_name,
             ),
 
             "maximize" => PuppeteerApp::<T>::proxy_error_handler(
-                proxy.send_event(ModifyView::MaximizeWindow),
+                proxy.send_event(UiEvent::Maximize),
                 app_env.app_name,
             ),
             "drag_window" => PuppeteerApp::<T>::proxy_error_handler(
-                proxy.send_event(ModifyView::DragWindow),
+                proxy.send_event(UiEvent::Drag),
                 app_env.app_name,
             ),
             "close_window" => PuppeteerApp::<T>::proxy_error_handler(
-                proxy.send_event(ModifyView::CloseWindow),
+                proxy.send_event(UiEvent::Close),
                 app_env.app_name,
             ),
             _ => {
-                let mut req_parse = T::parse(&req);
+                let req_parse = T::parse(&req);
 
-                let local_app_env = app_env.clone();
-                let local_proxy = proxy.clone();
-
-                smol::spawn(async move {
-                    let outcome = req_parse.event_handler(local_app_env).await;
-                    PuppeteerApp::<T>::proxy_error_handler(
-                        local_proxy.send_event(outcome),
-                        app_env.app_name,
-                    );
-                })
-                .detach();
+                PuppeteerApp::<T>::proxy_error_handler(
+                    proxy.send_event(UiEvent::Custom(req_parse)),
+                    app_env.app_name,
+                )
             }
         };
 
@@ -337,7 +319,7 @@ where
     }
 
     fn proxy_error_handler(
-        value: Result<(), EventLoopClosed<ModifyView>>,
+        value: Result<(), EventLoopClosed<UiEvent<T>>>,
         log_filter_name: &'static str,
     ) {
         match value {
@@ -351,23 +333,38 @@ where
         }
     }
 
-    fn get_webview_log_error<'p>(
-        app_name: &'static str,
-        webview: Option<&'p WebView>,
-    ) -> &'p WebView {
-        if let Some(webview_exists) = webview {
-            webview_exists
-        } else {
-            Logging::new(app_name)
-                .with_level(Level::ERROR)
-                .log(PuppeteerError::WebViewDoesNotExist.to_string().as_str());
+    fn eval_script_exit_on_error(app_name: &'static str, webview: &WebView, content: &ModifyView) {
+        match webview.evaluate_script(&content.to_html()) {
+            Ok(_) => (),
+            Err(error) => {
+                Logging::new(app_name)
+                    .with_level(Level::ERROR)
+                    .log(error.to_string().as_str());
 
-            std::process::exit(1);
+                std::process::exit(1);
+            }
         }
     }
 
-    fn eval_script_exit_on_error(app_name: &'static str, webview: &WebView, content: &dyn UiPaint) {
-        match webview.evaluate_script(&content.to_html()) {
+    fn callback_script_by_id(
+        app_name: &'static str,
+        webview: &WebView,
+        proxy: EventLoopProxy<UiEvent<T>>,
+        script: impl UiPaint,
+        callback_fn: crate::JsCallback,
+    ) {
+        let callback = move |value: String| {
+            if proxy
+                .send_event(UiEvent::Paint(callback_fn(&value)))
+                .is_err()
+            {
+                Logging::new(app_name)
+                    .with_level(Level::ERROR)
+                    .log(PuppeteerError::TaoEventLoopClosed.to_string().as_str());
+            }
+        };
+
+        match webview.evaluate_script_with_callback(&script.to_html(), callback) {
             Ok(_) => (),
             Err(error) => {
                 Logging::new(app_name)

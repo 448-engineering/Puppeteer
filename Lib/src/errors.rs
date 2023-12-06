@@ -18,13 +18,13 @@ pub enum PuppeteerError {
     /// The error that is returned when an EventLoopProxy attempts to wake up an EventLoop that no longer exists. Contains the original event given to send_event.
     #[error("The error that is returned when an EventLoopProxy attempts to wake up an EventLoop that no longer exists. Contains the original event given to send_event.
     ")]
-    WryEventLoopClosed,
+    TaoEventLoopClosed,
     /// An error whose cause it outside the control of the running app
     #[error("An error whose cause it outside the control of the running app")]
-    WryExternal(String),
+    TaoExternal(String),
     /// The error type for when the OS cannot perform the requested operation
     #[error("The error type for when the OS cannot perform the requested operation")]
-    WryOsError(String),
+    TaoOsError(String),
     /// Errors returned by wry
     #[error("Errors returned by wry")]
     Wry(WryError),
@@ -43,14 +43,6 @@ pub enum PuppeteerError {
     /// An [std::io::ErrorKind]
     #[error("Represents std::io::ErrorKind")]
     Io(ErrorKind),
-    /// The path provided for fonts in the `Shell::load_fonts()` is not a valid path
-    #[error("Could not found the fonts directory specified. Check your font path")]
-    FontsDirNotFound,
-    /// The path provided for fonts is valid but the permission to read the directory was denied
-    #[error(
-        "The path provided for fonts is valid but the permission to read the directory was denied"
-    )]
-    FontsDirPermissionDenied,
     /// For webview only WOFF2 font format is supported.
     #[error("The font detected ({0:?}) is not a valid `WOFF2` format for the web.")]
     InvalidFontExpectedWoff2(String),
@@ -73,13 +65,13 @@ impl From<std::io::Error> for PuppeteerError {
 
 impl<T> From<EventLoopClosed<T>> for PuppeteerError {
     fn from(_: EventLoopClosed<T>) -> Self {
-        PuppeteerError::WryEventLoopClosed
+        PuppeteerError::TaoEventLoopClosed
     }
 }
 
 impl From<ExternalError> for PuppeteerError {
     fn from(value: ExternalError) -> Self {
-        PuppeteerError::WryExternal(value.to_string())
+        PuppeteerError::TaoExternal(value.to_string())
     }
 }
 
@@ -91,6 +83,6 @@ impl From<WryError> for PuppeteerError {
 
 impl From<OsError> for PuppeteerError {
     fn from(value: OsError) -> Self {
-        PuppeteerError::WryOsError(value.to_string())
+        PuppeteerError::TaoOsError(value.to_string())
     }
 }

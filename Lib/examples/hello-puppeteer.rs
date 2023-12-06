@@ -7,7 +7,7 @@ use puppeteer::{
     ActiveAppEnv, ContextMenu, ModifyView, Puppeteer, PuppeteerApp, Shell, StaticAsset,
     DEFAULT_WINDOW_ACTIONS, DEFAULT_WINDOW_ACTIONS_SCRIPT, DEFAULT_WINDOW_ACTIONS_STYLE,
 };
-use std::{borrow::Cow, collections::HashMap};
+use std::collections::HashMap;
 use tracing_subscriber::FmtSubscriber;
 
 static MEM_STORE: Lazy<Mutex<HashMap<&str, String>>> = Lazy::new(|| {
@@ -45,17 +45,7 @@ pub enum AppTest {
     CloseWindow,
     RecvUserEmail(String),
     SubmitEmail,
-}
-
-impl AsRef<str> for AppTest {
-    fn as_ref(&self) -> &str {
-        match self {
-            Self::Root => "root",
-            Self::CloseWindow => "close_window",
-            Self::RecvUserEmail(_) => "recv_user_email",
-            Self::SubmitEmail => "submit_email",
-        }
-    }
+    Inc,
 }
 
 const PUPPETEER_LOGO: &str = include_str!("../../Documentation/Puppeteer-Logo.svg");
@@ -158,6 +148,9 @@ impl Puppeteer for AppTest {
                 <input class="frow col-md-1-2 mt-40" type="email" id="user_email" name="name" required placeholder="Enter Your Email Address" onkeydown="email_ops()"/>
 
                 <button onclick="window.ipc.postMessage('event:submit_mail>')">"SUBMIT"</button>
+                <button onclick="window.ipc.postMessage('inc')">"INC"</button>
+                <h3 id="inc">0</h3>
+
             </div>
         );
 
@@ -176,12 +169,14 @@ impl Puppeteer for AppTest {
             Self::RecvUserEmail(user_email)
         } else if message.starts_with("event:submit_mail>") {
             Self::SubmitEmail
+        } else if message.starts_with("inc") {
+            Self::Inc
         } else {
             todo!()
         }
     }
 
-    async fn event_handler(&mut self, app_env: ActiveAppEnv) -> ModifyView {
+    async fn event_handler(&mut self, app_env: &ActiveAppEnv) -> ModifyView {
         match self {
             Self::RecvUserEmail(data) => {
                 MEM_STORE.lock().await.insert("user_email", data.clone());
@@ -201,11 +196,25 @@ impl Puppeteer for AppTest {
 
                 ModifyView::ReplaceApp("USER EMAIL SUBMITTED".into())
             }
+            Self::Inc => ModifyView::ComputeWithIdData {
+                id: "inc".into(),
+                func: get_by_id,
+            },
             _ => ModifyView::Skip,
         }
     }
 
     async fn error_handler(_error: impl std::error::Error + Send) -> ModifyView {
         ModifyView::ReplaceApp("ERROR RECV".into())
+    }
+}
+
+fn get_by_id(value: &str) -> ModifyView {
+    let value = value.replace('"', "");
+
+    let content = (value.parse::<u32>().unwrap() + 1).to_string();
+    ModifyView::ReplaceNodeWithId {
+        id: "inc".into(),
+        content,
     }
 }
