@@ -7,7 +7,7 @@ use puppeteer::{
     ActiveAppEnv, ContextMenu, ModifyView, Puppeteer, PuppeteerApp, Shell, StaticAsset,
     DEFAULT_WINDOW_ACTIONS, DEFAULT_WINDOW_ACTIONS_SCRIPT, DEFAULT_WINDOW_ACTIONS_STYLE,
 };
-use std::{borrow::Cow, collections::HashMap};
+use std::collections::HashMap;
 use tracing_subscriber::FmtSubscriber;
 
 static MEM_STORE: Lazy<Mutex<HashMap<&str, String>>> = Lazy::new(|| {
@@ -45,17 +45,6 @@ pub enum AppTest {
     CloseWindow,
     RecvUserEmail(String),
     SubmitEmail,
-}
-
-impl AsRef<str> for AppTest {
-    fn as_ref(&self) -> &str {
-        match self {
-            Self::Root => "root",
-            Self::CloseWindow => "close_window",
-            Self::RecvUserEmail(_) => "recv_user_email",
-            Self::SubmitEmail => "submit_email",
-        }
-    }
 }
 
 const PUPPETEER_LOGO: &str = include_str!("../../Documentation/Puppeteer-Logo.svg");
@@ -158,6 +147,9 @@ impl Puppeteer for AppTest {
                 <input class="frow col-md-1-2 mt-40" type="email" id="user_email" name="name" required placeholder="Enter Your Email Address" onkeydown="email_ops()"/>
 
                 <button onclick="window.ipc.postMessage('event:submit_mail>')">"SUBMIT"</button>
+                <button onclick="window.ipc.postMessage('inc')">"INC"</button>
+                <h3 id="inc">0</h3>
+
             </div>
         );
 
@@ -181,7 +173,7 @@ impl Puppeteer for AppTest {
         }
     }
 
-    async fn event_handler(&mut self, app_env: ActiveAppEnv) -> ModifyView {
+    async fn event_handler(&mut self, app_env: &ActiveAppEnv) -> ModifyView {
         match self {
             Self::RecvUserEmail(data) => {
                 MEM_STORE.lock().await.insert("user_email", data.clone());

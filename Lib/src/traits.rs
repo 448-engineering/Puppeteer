@@ -21,7 +21,7 @@ pub trait Puppeteer {
     }
     /// The app default size window. This defaults to `WindowResize::ResizePercent(90)`
     fn splash_window_size() -> f32 {
-        50f32 / 100f32
+        90f32 / 100f32
     }
 
     /// Method is run to generate a [Shell].
@@ -31,7 +31,6 @@ pub trait Puppeteer {
     /// the app to function. This data can be use to load resources
     /// like fonts or load user data like username from a database, etc.
     /// Load the root page after initialization has completed
-
     async fn init(app_env: &ActiveAppEnv) -> ModifyView;
 
     /// The splash screen loaded when an app is being initialized
@@ -42,7 +41,7 @@ pub trait Puppeteer {
 
     /// After parsing the IPC message using the above `Puppeteer::parse()` method
     /// this method is called to perform updates to the UI
-    async fn event_handler(&mut self, app_env: ActiveAppEnv) -> ModifyView;
+    async fn event_handler(&mut self, app_env: &ActiveAppEnv) -> ModifyView;
 
     /// This is used to handle errors. It is async so that I/O can be used like to log to a file.
     /// It returns a [ModifyView] which can display an error message to the user
