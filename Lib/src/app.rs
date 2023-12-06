@@ -1,6 +1,6 @@
 use crate::{
-    AppEnvironment, Logging, Puppeteer, PuppeteerError, PuppeteerResult, StaticAsset, UiEvent,
-    UiPaint,
+    AppEnvironment, Logging, ModifyView, Puppeteer, PuppeteerError, PuppeteerResult, StaticAsset,
+    UiEvent, UiPaint,
 };
 use tao::{
     dpi::PhysicalSize,
@@ -95,11 +95,7 @@ where
                     Event::NewEvents(StartCause::Init) => {
                         let view_data = T::splashscreen();
 
-                        Self::eval_script_exit_on_error(
-                            self.env.app_name,
-                            &webview,
-                            &view_data.to_html(),
-                        );
+                        Self::eval_script_exit_on_error(self.env.app_name, &webview, &view_data);
 
                         PuppeteerApp::<T>::send_event(
                             self.proxy.clone(),
@@ -160,13 +156,22 @@ where
                                 custom_event,
                             );
                         }
-                        UiEvent::Paint(paint_data) => {
-                            PuppeteerApp::<T>::eval_script_exit_on_error(
+                        UiEvent::Paint(paint_data) => match paint_data {
+                            ModifyView::ComputeWithIdData { func, .. } => {
+                                PuppeteerApp::<T>::callback_script_by_id(
+                                    self.env.app_name,
+                                    &webview,
+                                    self.proxy.clone(),
+                                    paint_data,
+                                    func,
+                                )
+                            }
+                            _ => PuppeteerApp::<T>::eval_script_exit_on_error(
                                 self.env.app_name,
                                 &webview,
                                 &paint_data,
-                            );
-                        }
+                            ),
+                        },
                     },
                     _ => (),
                 }
@@ -328,8 +333,38 @@ where
         }
     }
 
-    fn eval_script_exit_on_error(app_name: &'static str, webview: &WebView, content: &dyn UiPaint) {
+    fn eval_script_exit_on_error(app_name: &'static str, webview: &WebView, content: &ModifyView) {
         match webview.evaluate_script(&content.to_html()) {
+            Ok(_) => (),
+            Err(error) => {
+                Logging::new(app_name)
+                    .with_level(Level::ERROR)
+                    .log(error.to_string().as_str());
+
+                std::process::exit(1);
+            }
+        }
+    }
+
+    fn callback_script_by_id(
+        app_name: &'static str,
+        webview: &WebView,
+        proxy: EventLoopProxy<UiEvent<T>>,
+        script: impl UiPaint,
+        callback_fn: crate::JsCallback,
+    ) {
+        let callback = move |value: String| {
+            if proxy
+                .send_event(UiEvent::Paint(callback_fn(&value)))
+                .is_err()
+            {
+                Logging::new(app_name)
+                    .with_level(Level::ERROR)
+                    .log(PuppeteerError::TaoEventLoopClosed.to_string().as_str());
+            }
+        };
+
+        match webview.evaluate_script_with_callback(&script.to_html(), callback) {
             Ok(_) => (),
             Err(error) => {
                 Logging::new(app_name)

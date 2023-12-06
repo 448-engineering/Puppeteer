@@ -5,6 +5,9 @@ use tao::{
     window::Window,
 };
 
+/// The callback used to modify a node based on the result of computation of it's text content
+pub type JsCallback = fn(&str) -> ModifyView;
+
 /// Event Handler for Puppeteer
 #[derive(Debug)]
 pub enum UiEvent<T: crate::Puppeteer + 'static + Send + Sync> {
@@ -48,11 +51,13 @@ pub enum ModifyView {
     DragWindow,
     /// Perform No Action on the data, this is useful for reactive UI like taking data from input field in real time
     Skip,
-    /*/// Fetch the inner text of the node with ID and pass it along to the closure defined as `func`
+    /// Fetch the inner text of the node with ID and pass it along to the closure defined as `func`
     ComputeWithIdData {
+        /// The node id to fetch it's text content
         id: String,
-        func: fn(&str) -> Box<dyn UiPaint>,
-    },*/
+        /// Callback function to use to send event to update node based on an operation on the text content
+        func: JsCallback,
+    },
 }
 
 impl ModifyView {
@@ -90,6 +95,11 @@ impl UiPaint for ModifyView {
             Self::MinimizeWindow => Cow::Borrowed("Minimize Window Requested"),
             Self::DragWindow => Cow::Borrowed("Dragging Window..."),
             Self::Skip => Cow::Borrowed("Skipped"),
+            Self::ComputeWithIdData { id, func: _ } => {
+                Cow::Borrowed("document.getElementById('")
+                    + Cow::Owned(id.to_owned())
+                    + "').textContent;"
+            }
         }
     }
 }

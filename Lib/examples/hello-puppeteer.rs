@@ -45,6 +45,7 @@ pub enum AppTest {
     CloseWindow,
     RecvUserEmail(String),
     SubmitEmail,
+    Inc,
 }
 
 const PUPPETEER_LOGO: &str = include_str!("../../Documentation/Puppeteer-Logo.svg");
@@ -168,6 +169,8 @@ impl Puppeteer for AppTest {
             Self::RecvUserEmail(user_email)
         } else if message.starts_with("event:submit_mail>") {
             Self::SubmitEmail
+        } else if message.starts_with("inc") {
+            Self::Inc
         } else {
             todo!()
         }
@@ -193,11 +196,25 @@ impl Puppeteer for AppTest {
 
                 ModifyView::ReplaceApp("USER EMAIL SUBMITTED".into())
             }
+            Self::Inc => ModifyView::ComputeWithIdData {
+                id: "inc".into(),
+                func: get_by_id,
+            },
             _ => ModifyView::Skip,
         }
     }
 
     async fn error_handler(_error: impl std::error::Error + Send) -> ModifyView {
         ModifyView::ReplaceApp("ERROR RECV".into())
+    }
+}
+
+fn get_by_id(value: &str) -> ModifyView {
+    let value = value.replace('"', "");
+
+    let content = (value.parse::<u32>().unwrap() + 1).to_string();
+    ModifyView::ReplaceNodeWithId {
+        id: "inc".into(),
+        content,
     }
 }
