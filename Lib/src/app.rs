@@ -123,8 +123,8 @@ where
 
                             std::process::exit(0)
                         }
-                        UiEvent::Maximize => window.set_minimized(true),
-                        UiEvent::Minimize => window.set_maximized(!window.is_maximized()),
+                        UiEvent::Minimize => window.set_minimized(true),
+                        UiEvent::Maximize => window.set_maximized(!window.is_maximized()),
                         UiEvent::Drag => {
                             if window.drag_window().is_err() {
                                 PuppeteerApp::<T>::send_event(
