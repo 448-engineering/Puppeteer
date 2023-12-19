@@ -196,10 +196,7 @@ impl Puppeteer for AppTest {
 
                 ModifyView::ReplaceApp("USER EMAIL SUBMITTED".into())
             }
-            Self::Inc => ModifyView::ComputeWithIdData {
-                id: "inc".into(),
-                func: get_by_id,
-            },
+            Self::Inc => ModifyView::compute_with_data("inc", get_by_id),
             _ => ModifyView::Skip,
         }
     }

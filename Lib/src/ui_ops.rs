@@ -73,6 +73,14 @@ impl ModifyView {
             content: content.to_html().to_string(),
         }
     }
+
+    /// Construct [Self] to get Self::ComputeWithData
+    pub fn compute_with_data(id: &str, func: JsCallback) -> Self {
+        Self::ComputeWithIdData {
+            id: id.to_owned(),
+            func,
+        }
+    }
 }
 
 impl UiPaint for ModifyView {
