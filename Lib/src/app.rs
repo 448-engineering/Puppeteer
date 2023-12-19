@@ -166,6 +166,16 @@ where
                                     func,
                                 )
                             }
+                            ModifyView::ComputeInputWithIdData { func, .. } => {
+                                PuppeteerApp::<T>::callback_script_by_id(
+                                    self.env.app_name,
+                                    &webview,
+                                    self.proxy.clone(),
+                                    paint_data,
+                                    func,
+                                )
+                            }
+                            ModifyView::Skip => (),
                             _ => PuppeteerApp::<T>::eval_script_exit_on_error(
                                 self.env.app_name,
                                 &webview,

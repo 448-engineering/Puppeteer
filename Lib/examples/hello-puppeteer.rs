@@ -46,6 +46,7 @@ pub enum AppTest {
     RecvUserEmail(String),
     SubmitEmail,
     Inc,
+    GetPassphrase,
 }
 
 const PUPPETEER_LOGO: &str = include_str!("../../Documentation/Puppeteer-Logo.svg");
@@ -149,6 +150,8 @@ impl Puppeteer for AppTest {
 
                 <button onclick="window.ipc.postMessage('event:submit_mail>')">"SUBMIT"</button>
                 <button onclick="window.ipc.postMessage('inc')">"INC"</button>
+                <input class="frow col-md-1-2 mt-40" type="password" id="passphrase" name="name" required placeholder="Enter Your Passphrase/Password" onkeydown="window.ipc.postMessage('get_passphrase')"/>
+
                 <h3 id="inc">0</h3>
 
             </div>
@@ -172,7 +175,10 @@ impl Puppeteer for AppTest {
         } else if message.starts_with("inc") {
             Self::Inc
         } else {
-            todo!()
+            match message {
+                "get_passphrase" => Self::GetPassphrase,
+                _ => todo!(),
+            }
         }
     }
 
@@ -197,6 +203,9 @@ impl Puppeteer for AppTest {
                 ModifyView::ReplaceApp("USER EMAIL SUBMITTED".into())
             }
             Self::Inc => ModifyView::compute_with_data("inc", get_by_id),
+            Self::GetPassphrase => {
+                ModifyView::compute_input_with_data("passphrase", print_passphrase)
+            }
             _ => ModifyView::Skip,
         }
     }
@@ -214,4 +223,11 @@ fn get_by_id(value: &str) -> ModifyView {
         id: "inc".into(),
         content,
     }
+}
+
+fn print_passphrase(value: &str) -> ModifyView {
+    let value = value.replace('"', "");
+
+    dbg!(value);
+    ModifyView::Skip
 }

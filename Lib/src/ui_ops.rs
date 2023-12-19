@@ -58,6 +58,13 @@ pub enum ModifyView {
         /// Callback function to use to send event to update node based on an operation on the text content
         func: JsCallback,
     },
+    /// Fetch the inner text of the node of type `<input>` with ID and pass it along to the closure defined as `func`
+    ComputeInputWithIdData {
+        /// The node id to fetch it's text content
+        id: String,
+        /// Callback function to use to send event to update node based on an operation on the text content
+        func: JsCallback,
+    },
 }
 
 impl ModifyView {
@@ -77,6 +84,14 @@ impl ModifyView {
     /// Construct [Self] to get Self::ComputeWithData
     pub fn compute_with_data(id: &str, func: JsCallback) -> Self {
         Self::ComputeWithIdData {
+            id: id.to_owned(),
+            func,
+        }
+    }
+
+    /// Construct [Self] to get Self::ComputeWithData
+    pub fn compute_input_with_data(id: &str, func: JsCallback) -> Self {
+        Self::ComputeInputWithIdData {
             id: id.to_owned(),
             func,
         }
@@ -107,6 +122,9 @@ impl UiPaint for ModifyView {
                 Cow::Borrowed("document.getElementById('")
                     + Cow::Owned(id.to_owned())
                     + "').textContent;"
+            }
+            Self::ComputeInputWithIdData { id, func: _ } => {
+                Cow::Borrowed("document.getElementById('") + Cow::Owned(id.to_owned()) + "').value;"
             }
         }
     }
