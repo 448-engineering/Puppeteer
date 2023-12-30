@@ -1,7 +1,7 @@
 [package]
 name = "puppeteer"
 authors = ["448 Engineering Developers <superuser@448.africa>"]
-version = "2.7.1"
+version = "2.7.2"
 edition = "2021"
 description = "A Minimal Dependency Easy to Use GUI Builder in Rust using Async Channels"
 categories = ["graphics", "gui"]
@@ -38,7 +38,7 @@ smol = "1.3.0"
 tao = "0.24.0"
 thiserror = "1.0.50"
 tracing = "0.1.40"
-wry = "0.35.0"
+wry = "0.35.1"
 
 [dev-dependencies]
 html-to-string-macro = "0.2.5"
