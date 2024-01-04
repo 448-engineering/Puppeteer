@@ -1,7 +1,7 @@
 [package]
 name = "puppeteer"
 authors = ["448 Engineering Developers <superuser@448.africa>"]
-version = "2.7.2"
+version = "2.7.3"
 edition = "2021"
 description = "A Minimal Dependency Easy to Use GUI Builder in Rust using Async Channels"
 categories = ["graphics", "gui"]
@@ -34,7 +34,7 @@ file-format = { version = "0.23.0", features = [
     "reader-zip",
 ] }
 once_cell = "1.18.0"
-smol = "1.3.0"
+smol = "2.0.0"
 tao = "0.24.0"
 thiserror = "1.0.50"
 tracing = "0.1.40"
